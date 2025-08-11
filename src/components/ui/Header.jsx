@@ -5,6 +5,7 @@ import Icon from '../AppIcon';
 import Button from './Button';
 import Input from './Input';
 import ThemeSwitcher from './ThemeSwitcher';
+import { useAuth } from '../../context/AuthContext';
 
 const Header = () => {
   const [showProfileMenu, setShowProfileMenu] = React.useState(false);
@@ -12,6 +13,7 @@ const Header = () => {
   const router = useRouter();
   const navigate = router.push;
   const profileRef = React.useRef(null);
+  const { isAuthenticated, logout } = useAuth();
 
   React.useEffect(() => {
     const handleClickOutside = (e) => {
@@ -102,6 +104,13 @@ const Header = () => {
           </Button>
           {/* Theme Switcher */}
           <ThemeSwitcher />
+          {/* Auth CTA when logged out */}
+          {!isAuthenticated && (
+            <>
+              <Link href="/login" className="hidden md:inline-block"><Button variant="ghost">Log In</Button></Link>
+              <Link href="/register" className="hidden md:inline-block"><Button variant="secondary">Sign Up</Button></Link>
+            </>
+          )}
           {/* Mobile Menu Button */}
           <Button
             variant="ghost"
@@ -143,9 +152,16 @@ const Header = () => {
                     Settings
                   </button>
                   <hr className="my-2 border-border" />
-                  <button className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-md transition-micro">
-                    Sign Out
-                  </button>
+                  {isAuthenticated ? (
+                    <button className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-md transition-micro" onClick={() => { setShowProfileMenu(false); logout(); }}>
+                      Sign Out
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-between px-2 py-1">
+                      <Link href="/login"><Button variant="ghost" size="sm">Log In</Button></Link>
+                      <Link href="/register"><Button variant="secondary" size="sm">Sign Up</Button></Link>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

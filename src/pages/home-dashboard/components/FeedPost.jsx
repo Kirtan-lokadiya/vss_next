@@ -148,12 +148,13 @@ const FeedPost = ({ post }) => {
           {post.type === 'article' && post.excerpt && (
             <div className="bg-muted rounded-lg p-4 mt-3">
               <p className="text-sm text-text-secondary mb-2">{post.excerpt}</p>
-              <Link 
+                             <a 
                 href={`/blog-detail-view?id=${post.id}&from=home`}
+                onClick={(e) => { if (!isAuthenticated) { e.preventDefault(); openAuthModal(); } }}
                 className="text-sm text-primary hover:text-primary/80 font-medium transition-micro"
               >
                 Read more →
-              </Link>
+              </a>
             </div>
           )}
         </div>

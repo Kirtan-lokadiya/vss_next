@@ -11,6 +11,7 @@ const AuthContext = createContext({
   openAuthModal: () => {},
   closeAuthModal: () => {},
   authModalOpen: false,
+  loading: false,
 });
 
 export const AuthProvider = ({ children }) => {
@@ -19,6 +20,8 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
+
+  const AUTH_BASE = process.env.NEXT_PUBLIC_AUTH_BASE_URL || 'http://localhost:5321/api/v1/auth';
 
   // Handle client-side mounting
   useEffect(() => {
@@ -32,6 +35,22 @@ export const AuthProvider = ({ children }) => {
       if (stored) setToken(stored);
     }
   }, [mounted]);
+
+  // Verify token when it changes
+  useEffect(() => {
+    const verify = async () => {
+      if (!token) return;
+      try {
+        const res = await fetch(`${AUTH_BASE}/verify?JWTToken=${encodeURIComponent(token)}`);
+        if (!res.ok) throw new Error('Token verification failed');
+      } catch (err) {
+        console.warn('Auth token invalid, clearing it');
+        setToken(null);
+        if (mounted) localStorage.removeItem('token');
+      }
+    };
+    verify();
+  }, [token, AUTH_BASE, mounted]);
 
   const handleAuthResponse = useCallback((data) => {
     if (data && data.token) {
@@ -48,7 +67,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5321/api/v1/auth/authenticate', {
+      const res = await fetch(`${AUTH_BASE}/authenticate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -68,7 +87,7 @@ export const AuthProvider = ({ children }) => {
   const register = async ({ firstName, lastName, email, password }) => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5321/api/v1/auth/register', {
+      const res = await fetch(`${AUTH_BASE}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: `${firstName} ${lastName}`.trim(), email, password }),
