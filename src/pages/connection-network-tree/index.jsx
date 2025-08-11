@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import Header from '@/src/components/ui/Header';
 import NavigationBreadcrumb from '@/src/components/ui/NavigationBreadcrumb';
 import NetworkVisualization from './components/NetworkVisualization';
-import NetworkFilters from './components/NetworkFilters';
-import NetworkStats from './components/NetworkStats';
 import ConnectionDetails from './components/ConnectionDetails';
 
 const ConnectionNetworkTree = () => {
@@ -147,7 +145,7 @@ const ConnectionNetworkTree = () => {
       location: "Los Angeles, CA",
       industry: "Technology",
       connections: 423,
-      connectedDate: "1 year ago",
+      connectedDate: "",
       interactions: 12,
       avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
       bio: "Full-stack software engineer with expertise in distributed systems and streaming technologies. Contributing to Netflix\'s global content delivery platform.",
@@ -261,31 +259,16 @@ const ConnectionNetworkTree = () => {
 
           {/* Page Header */}
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              Connection Network Tree
-            </h1>
             <p className="text-text-secondary">
               Visualize and explore your professional network through interactive node-based connections
             </p>
           </div>
 
-          {/* Network Statistics */}
-          <NetworkStats 
-            stats={networkStats}
-            className="mb-6"
-          />
+       
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Left Sidebar - Filters */}
-            <div className="lg:col-span-1">
-              <NetworkFilters
-                filters={filters}
-                onFiltersChange={handleFiltersChange}
-                onSearch={handleSearch}
-                className="sticky top-24"
-              />
-            </div>
+            
 
             {/* Center - Network Visualization */}
             <div className="lg:col-span-2">

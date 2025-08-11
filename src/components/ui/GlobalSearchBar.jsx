@@ -30,15 +30,7 @@ const GlobalSearchBar = ({ className = '' }) => {
     navigate(-1); // Go back to previous page
   };
 
-  // Mock suggestions data
-  const mockSuggestions = [
-    { type: 'user', title: 'Sarah Johnson', subtitle: 'Product Designer at Google', icon: 'User' },
-    { type: 'post', title: 'AI in Product Development', subtitle: 'Posted by Mike Chen • 2 days ago', icon: 'FileText' },
-    { type: 'idea', title: 'Sustainable Tech Solutions', subtitle: 'Whiteboard by Alex Kim', icon: 'Lightbulb' },
-    { type: 'product', title: 'CloudSync Pro', subtitle: 'Enterprise collaboration tool', icon: 'Package' },
-    { type: 'user', title: 'David Rodriguez', subtitle: 'Engineering Manager at Meta', icon: 'User' },
-  ];
-
+ 
   useEffect(() => {
     // Load recent searches from localStorage
     const saved = localStorage.getItem('recentSearches');

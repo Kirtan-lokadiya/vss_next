@@ -242,72 +242,9 @@ const NoteDetailsPanel = ({
         )}
       </div>
 
-      {/* Comments */}
-      <div className="flex-1 flex flex-col">
-        <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground mb-3">
-            Comments ({note.comments?.length || 0})
-          </h3>
-          
-          {/* Add Comment */}
-          <div className="space-y-2">
-            <textarea
-              placeholder="Add a comment..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="w-full h-16 px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none text-sm"
-            />
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleAddComment}
-              disabled={!newComment.trim()}
-              className="w-full"
-            >
-              <Icon name="MessageCircle" size={14} className="mr-1" />
-              Add Comment
-            </Button>
-          </div>
-        </div>
+     
 
-        {/* Comments List */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {note.comments && note.comments.length > 0 ? (
-            <div className="space-y-3">
-              {note.comments.map((comment) => (
-                <div key={comment.id} className="bg-muted rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-foreground">
-                      {comment.author}
-                    </span>
-                    <span className="text-xs text-text-secondary">
-                      {formatDate(comment.timestamp)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-foreground">{comment.text}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-text-secondary text-center mt-8">
-              No comments yet. Be the first to comment!
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="p-4 border-t border-border">
-        <Button
-          variant="destructive"
-          onClick={() => onDeleteNote(note.id)}
-          className="w-full"
-          iconName="Trash2"
-          iconPosition="left"
-        >
-          Delete Note
-        </Button>
-      </div>
+      
     </div>
   );
 };

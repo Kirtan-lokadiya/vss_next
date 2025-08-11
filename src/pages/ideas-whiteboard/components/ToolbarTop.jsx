@@ -56,49 +56,12 @@ const ToolbarTop = ({
       <div className="flex items-center space-x-4">
         {/* Zoom Controls */}
         <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onZoomOut}
-            disabled={scale <= 0.25}
-            title="Zoom out"
-          >
-            <Icon name="ZoomOut" size={16} />
-          </Button>
+       
           
-          <div className="relative">
-            <select
-              value={scale}
-              onChange={(e) => handleZoomSelect(parseFloat(e.target.value))}
-              className="px-3 py-1 border border-border rounded-md text-sm min-w-20 text-center"
-            >
-              {zoomLevels.map((zoom) => (
-                <option key={zoom} value={zoom}>
-                  {Math.round(zoom * 100)}%
-                </option>
-              ))}
-            </select>
-          </div>
           
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onZoomIn}
-            disabled={scale >= 2}
-            title="Zoom in"
-          >
-            <Icon name="ZoomIn" size={16} />
-          </Button>
+     
           
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onResetZoom}
-            title="Reset zoom to 100%"
-          >
-            <Icon name="RotateCcw" size={14} className="mr-1" />
-            Reset
-          </Button>
+        
         </div>
 
         <div className="w-px h-6 bg-border"></div>
@@ -155,91 +118,7 @@ const ToolbarTop = ({
       </div>
 
       {/* Right Section - Actions */}
-      <div className="flex items-center space-x-2">
-        {/* Collaboration Toggle */}
-        <Button
-          variant={isCollaborative ? 'default' : 'outline'}
-          size="sm"
-          onClick={onToggleCollaboration}
-          className="relative"
-        >
-          <Icon name="Users" size={14} className="mr-1" />
-          {isCollaborative ? 'Live' : 'Solo'}
-          {isCollaborative && collaborators.length > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-success text-white text-xs rounded-full flex items-center justify-center">
-              {collaborators.length}
-            </span>
-          )}
-        </Button>
-
-        <div className="w-px h-6 bg-border"></div>
-
-        {/* Save Button */}
-        <Button
-          variant="default"
-          size="sm"
-          onClick={handleSaveBoard}
-          data-save-button
-        >
-          <Icon name="Save" size={14} className="mr-1" />
-          Save
-        </Button>
-
-        {/* More Actions */}
-        <div className="relative">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setShowSearchOptions(!showSearchOptions)}
-            title="More options"
-          >
-            <Icon name="MoreVertical" size={16} />
-          </Button>
-
-          {showSearchOptions && (
-            <div className="absolute right-0 mt-2 w-48 bg-popover border border-border rounded-lg shadow-modal z-1010">
-              <div className="p-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    onClearBoard();
-                    setShowSearchOptions(false);
-                  }}
-                  className="w-full justify-start text-sm text-destructive hover:text-destructive"
-                >
-                  <Icon name="Trash2" size={14} className="mr-2" />
-                  Clear Board
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    window.print();
-                    setShowSearchOptions(false);
-                  }}
-                  className="w-full justify-start text-sm"
-                >
-                  <Icon name="Printer" size={14} className="mr-2" />
-                  Print Board
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    navigator.share?.({
-                      title: 'Ideas Whiteboard',
-                      text: 'Check out my ideas whiteboard',
-                      url: window.location.href
-                    });
-                    setShowSearchOptions(false);
-                  }}
-                  className="w-full justify-start text-sm"
-                >
-                  <Icon name="Share2" size={14} className="mr-2" />
-                  Share Board
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+      <div className="flex items-center space-x-2">     
       </div>
     </div>
   );

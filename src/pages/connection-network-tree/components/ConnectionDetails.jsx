@@ -29,7 +29,7 @@ const ConnectionDetails = ({
   const tabs = [
     { id: 'profile', label: 'Profile', icon: 'User' },
     { id: 'mutual', label: 'Mutual', icon: 'Users' },
-    { id: 'activity', label: 'Activity', icon: 'Activity' }
+    
   ];
 
   const mutualConnections = selectedConnection.mutualConnections || [
@@ -125,31 +125,16 @@ const ConnectionDetails = ({
             <div className="flex-1">
               <h2 className="text-xl font-semibold text-foreground">
                 {selectedConnection.name}
-              </h2>
-              <p className="text-text-secondary">
-                {selectedConnection.title} at {selectedConnection.company}
-              </p>
-              <p className="text-sm text-text-secondary">
-                {selectedConnection.location}
-              </p>
+              </h2>          
               <div className="flex items-center space-x-4 mt-2">
                 <span className="text-sm text-text-secondary">
                   {selectedConnection.connections || 500}+ connections
                 </span>
-                <span className="text-sm text-text-secondary">
-                  Connected {selectedConnection.connectedDate || '2 months ago'}
-                </span>
+                
               </div>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="w-8 h-8"
-          >
-            <Icon name="X" size={16} />
-          </Button>
+          
         </div>
 
         {/* Action Buttons */}
@@ -172,13 +157,7 @@ const ConnectionDetails = ({
           >
             Connect
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-10 h-10"
-          >
-            <Icon name="MoreHorizontal" size={16} />
-          </Button>
+          
         </div>
       </div>
 

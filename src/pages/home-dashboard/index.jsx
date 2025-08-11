@@ -4,7 +4,6 @@ import ProfileSidebar from '@/src/components/ui/ProfileSidebar';
 import NavigationBreadcrumb from '@/src/components/ui/NavigationBreadcrumb';
 import PostCreationCard from './components/PostCreationCard';
 import FeedContainer from './components/FeedContainer';
-import TrendingSidebar from './components/TrendingSidebar';
 import Icon from '@/src/components/AppIcon';
 
 const HomeDashboard = () => {
@@ -55,10 +54,7 @@ const HomeDashboard = () => {
             </div>
           </div>
         </main>
-        {/* Right Column - Trending & Suggestions */}
-        <aside className="hidden lg:block lg:w-96 sticky top-24 h-full">
-          <TrendingSidebar />
-        </aside>
+       
       </div>
     </div>
   );

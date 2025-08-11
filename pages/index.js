@@ -5,7 +5,6 @@ import ProfileSidebar from '../src/components/ui/ProfileSidebar';
 import NavigationBreadcrumb from '../src/components/ui/NavigationBreadcrumb';
 import PostCreationCard from '../src/pages/home-dashboard/components/PostCreationCard';
 import FeedContainer from '../src/pages/home-dashboard/components/FeedContainer';
-import TrendingSidebar from '../src/pages/home-dashboard/components/TrendingSidebar';
 import Icon from '../src/components/AppIcon';
 
 const HomePage = () => {
@@ -64,11 +63,6 @@ const HomePage = () => {
               </div>
             </div>
           </main>
-          
-          {/* Right Column - Trending & Suggestions */}
-          <aside className="hidden lg:block lg:w-96 sticky top-24 h-full">
-            <TrendingSidebar />
-          </aside>
         </div>
       </div>
     </>

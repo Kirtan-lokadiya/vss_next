@@ -8,7 +8,7 @@ const NetworkVisualization = ({
   onNodeSelect, 
   viewMode, 
   onViewModeChange,
-  filters,
+  
   className = '' 
 }) => {
   const svgRef = useRef(null);
@@ -98,10 +98,7 @@ const NetworkVisualization = ({
     setIsDragging(false);
   };
 
-  const handleZoom = (direction) => {
-    const newZoom = direction === 'in' ? Math.min(zoom * 1.2, 3) : Math.max(zoom / 1.2, 0.3);
-    setZoom(newZoom);
-  };
+
 
   const handleNodeClick = (node) => {
     onNodeSelect(node);
@@ -111,10 +108,6 @@ const NetworkVisualization = ({
     setHoveredConnection(connectionId);
   };
 
-  const resetView = () => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-  };
 
   const getConnectionStrength = (connection) => {
     const interactions = connection.interactions || 0;
@@ -168,34 +161,7 @@ const NetworkVisualization = ({
         ))}
       </div>
 
-      {/* Zoom Controls */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col space-y-2">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => handleZoom('in')}
-          className="w-10 h-10"
-        >
-          <Icon name="Plus" size={16} />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => handleZoom('out')}
-          className="w-10 h-10"
-        >
-          <Icon name="Minus" size={16} />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={resetView}
-          className="w-10 h-10"
-          title="Reset view"
-        >
-          <Icon name="RotateCcw" size={16} />
-        </Button>
-      </div>
+      
 
       {/* Network Visualization */}
       <svg
@@ -369,19 +335,7 @@ const NetworkVisualization = ({
         </div>
       </div>
 
-      {/* Export Button */}
-      <div className="absolute bottom-4 right-4">
-        <Button
-          variant="outline"
-          size="sm"
-          iconName="Download"
-          iconPosition="left"
-          iconSize={16}
-          onClick={() => console.log('Export network data')}
-        >
-          Export
-        </Button>
-      </div>
+      
     </div>
   );
 };

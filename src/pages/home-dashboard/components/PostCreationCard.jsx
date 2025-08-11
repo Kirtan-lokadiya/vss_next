@@ -10,9 +10,7 @@ const PostCreationCard = () => {
 
   const postTypes = [
     { value: 'thought', label: 'Share a thought', icon: 'MessageCircle' },
-    { value: 'article', label: 'Write an article', icon: 'FileText' },
     { value: 'idea', label: 'Share an idea', icon: 'Lightbulb' },
-    { value: 'update', label: 'Company update', icon: 'Building' }
   ];
 
   const handlePostTypeChange = (type) => {
@@ -111,9 +109,6 @@ const PostCreationCard = () => {
             </Button>
             <Button variant="ghost" size="sm" iconName="Link" iconPosition="left" iconSize={16}>
               Link
-            </Button>
-            <Button variant="ghost" size="sm" iconName="Calendar" iconPosition="left" iconSize={16}>
-              Event
             </Button>
           </div>
 
