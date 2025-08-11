@@ -40,155 +40,103 @@ const Register = () => {
     await register({ firstName: formData.firstName, lastName: formData.lastName, email: formData.email, password: formData.password });
   };
 
-  const handleGoogleSignUp = async () => {
-    // TODO: Handle Google OAuth
-  };
-
   return (
     <>
       <Head>
-        <title>Register - LinkedBoard Pro</title>
-        <meta name="description" content="Create your LinkedBoard Pro account" />
+        <title>Sign Up - VSS</title>
+        <meta name="description" content="Create your VSS account" />
       </Head>
-      
-      <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4">
-        <div className="bg-card p-8 rounded-lg shadow-card w-full max-w-md space-y-8">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-foreground">Create your account</h2>
-            <p className="mt-2 text-sm text-text-secondary">
-              Join LinkedBoard Pro and start networking
-            </p>
-          </div>
 
-          <button
-            type="button"
-            onClick={handleGoogleSignUp}
-            className="w-full flex items-center justify-center space-x-2 border border-border rounded-lg py-2.5 hover:bg-muted transition-micro"
-          >
-            <svg width="20" height="20" viewBox="0 0 48 48"><g><path fill="#4285F4" d="M24 9.5c3.54 0 6.72 1.22 9.22 3.23l6.9-6.9C36.68 2.36 30.74 0 24 0 14.82 0 6.71 5.06 2.69 12.44l8.06 6.26C12.36 13.13 17.74 9.5 24 9.5z"/><path fill="#34A853" d="M46.1 24.5c0-1.64-.15-3.22-.42-4.74H24v9.04h12.42c-.54 2.9-2.18 5.36-4.64 7.04l7.18 5.6C43.98 37.1 46.1 31.3 46.1 24.5z"/><path fill="#FBBC05" d="M10.75 28.7c-1.1-3.3-1.1-6.8 0-10.1l-8.06-6.26C.98 16.1 0 20.01 0 24c0 3.99.98 7.9 2.69 11.66l8.06-6.26z"/><path fill="#EA4335" d="M24 48c6.48 0 11.92-2.14 15.89-5.82l-7.18-5.6c-2.01 1.35-4.59 2.15-8.71 2.15-6.26 0-11.64-3.63-13.25-8.86l-8.06 6.26C6.71 42.94 14.82 48 24 48z"/></g></svg>
-            <span>Sign up with Google</span>
-          </button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border"></div>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-text-secondary">Or continue with</span>
+      <div className="min-h-screen flex items-center justify-center bg-[#F3F0FF] dark:bg-background py-12 px-4">
+        <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          {/* Left brand panel */}
+          <div className="hidden md:block">
+            <div className="space-y-6">
+              <h1 className="text-6xl font-extrabold tracking-tight">
+                <span className="bg-gradient-to-r from-violet-500 to-blue-500 bg-clip-text text-transparent">VSS</span>
+              </h1>
+              <p className="text-lg text-text-secondary max-w-md">
+                VSS helps you connect and share with the people in your life.
+              </p>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">First Name</label>
-                <Input
-                  type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
-                  placeholder="John"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Last Name</label>
-                <Input
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
-                  placeholder="Doe"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
+          {/* Right form card */}
+          <div className="bg-white dark:bg-card p-8 rounded-xl shadow-card w-full max-w-md mx-auto">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input
+                type="text"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleInputChange}
+                placeholder="Full Name"
+                required
+              />
               <Input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                placeholder="you@example.com"
+                placeholder="Email address"
                 required
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Password</label>
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  placeholder="Create a password"
+                  placeholder="Password"
                   required
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2"
-                >
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2">
                   <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={16} className="text-text-secondary" />
                 </button>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Confirm Password</label>
               <div className="relative">
                 <Input
                   type={showConfirmPassword ? 'text' : 'password'}
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
-                  placeholder="Confirm your password"
+                  placeholder="Confirm Password"
                   required
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2"
-                >
+                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-2 top-1/2 -translate-y-1/2">
                   <Icon name={showConfirmPassword ? 'EyeOff' : 'Eye'} size={16} className="text-text-secondary" />
                 </button>
               </div>
-            </div>
 
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="agree-terms"
-                checked={agreeToTerms}
-                onChange={(e) => setAgreeToTerms(e.target.checked)}
-                className="h-4 w-4 text-primary border-border rounded"
-              />
-              <label htmlFor="agree-terms" className="ml-2 text-sm text-text-secondary">
-                I agree to the{' '}
-                <Link href="/terms" className="text-primary hover:underline">
-                  Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link href="/privacy" className="text-primary hover:underline">
-                  Privacy Policy
-                </Link>
-              </label>
-            </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="agree-terms"
+                  checked={agreeToTerms}
+                  onChange={(e) => setAgreeToTerms(e.target.checked)}
+                  className="h-4 w-4 text-primary border-border rounded"
+                />
+                <label htmlFor="agree-terms" className="ml-2 text-sm text-text-secondary">
+                  I agree to the Terms of Service and Privacy Policy
+                </label>
+              </div>
 
-            <Button type="submit" className="w-full" variant="default" loading={loading}>
-              Create Account
-            </Button>
-          </form>
+              <Button type="submit" className="w-full" variant="default" loading={loading}>
+                Sign Up
+              </Button>
+            </form>
 
-          <p className="text-center text-sm text-text-secondary">
-            Already have an account?{' '}
-            <Link href="/login" className="text-primary hover:underline">
-              Sign in
-            </Link>
-          </p>
+            <p className="text-center text-sm text-text-secondary mt-4">
+              Already have an account?{' '}
+              <Link href="/login" className="text-primary hover:underline">
+                Log in
+              </Link>
+            </p>
+          </div>
+
+          {/* Bottom helper text on small screens */}
+          <div className="md:col-span-2 text-center text-xs text-text-secondary mt-8">
+            Create a Profile for a Showcase Creativity and Connect People.
+          </div>
         </div>
       </div>
     </>

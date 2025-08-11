@@ -4,9 +4,11 @@ import Icon from '@/src/components/AppIcon';
 import Image from '@/src/components/AppImage';
 import Button from '@/src/components/ui/Button';
 import { useAuth } from "../../../context/AuthContext";
+import { useRouter } from 'next/router';
 
 const FeedPost = ({ post }) => {
   const { isAuthenticated, openAuthModal } = useAuth();
+  const router = useRouter();
   const [isLiked, setIsLiked] = useState(post.isLiked || false);
   const [likeCount, setLikeCount] = useState(post.likes || 0);
   const [showComments, setShowComments] = useState(false);
@@ -15,11 +17,23 @@ const FeedPost = ({ post }) => {
   const [showDonate, setShowDonate] = useState(false);
   const [donationAmount, setDonationAmount] = useState(5);
 
-  const handleLike = () => {
+  const requireLoginRedirect = () => {
     if (!isAuthenticated) {
-      openAuthModal();
-      return;
+      router.push('/login');
+      return true;
     }
+    return false;
+  };
+
+  const handleCardClick = (e) => {
+    // If not authenticated, redirect to login
+    if (requireLoginRedirect()) {
+      e.preventDefault();
+    }
+  };
+
+  const handleLike = () => {
+    if (requireLoginRedirect()) return;
     const nextLiked = !isLiked;
     setIsLiked(nextLiked);
     setLikeCount(prev => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
@@ -29,6 +43,7 @@ const FeedPost = ({ post }) => {
   };
 
   const handleShare = async () => {
+    if (requireLoginRedirect()) return;
     const shareData = {
       title: `Post by ${post.author.name}`,
       text: post.content.slice(0, 120),
@@ -47,10 +62,7 @@ const FeedPost = ({ post }) => {
   };
 
   const handleDonate = (amount) => {
-    if (!isAuthenticated) {
-      openAuthModal();
-      return;
-    }
+    if (requireLoginRedirect()) return;
     const parsed = Number(amount);
     if (!isNaN(parsed) && parsed > 0) {
       setDonationPool(prev => prev + parsed);
@@ -59,10 +71,7 @@ const FeedPost = ({ post }) => {
   };
 
   const handleComment = () => {
-    if (!isAuthenticated) {
-      openAuthModal();
-      return;
-    }
+    if (requireLoginRedirect()) return;
     if (commentText.trim()) {
       console.log('Adding comment:', commentText);
       setCommentText('');
@@ -92,7 +101,7 @@ const FeedPost = ({ post }) => {
   };
 
   return (
-    <div className="bg-card border border-border rounded-lg shadow-card mb-6">
+    <div className="bg-card border border-border rounded-lg shadow-card mb-6" onClick={handleCardClick}>
       {/* Post Header */}
       <div className="p-6 pb-4">
         <div className="flex items-start justify-between">
@@ -132,7 +141,7 @@ const FeedPost = ({ post }) => {
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="w-8 h-8">
+          <Button variant="ghost" size="icon" className="w-8 h-8" onClick={(e) => { e.stopPropagation(); if (requireLoginRedirect()) return; }}>
             <Icon name="MoreHorizontal" size={16} />
           </Button>
         </div>
@@ -148,9 +157,9 @@ const FeedPost = ({ post }) => {
           {post.type === 'article' && post.excerpt && (
             <div className="bg-muted rounded-lg p-4 mt-3">
               <p className="text-sm text-text-secondary mb-2">{post.excerpt}</p>
-                             <a 
+              <a 
                 href={`/blog-detail-view?id=${post.id}&from=home`}
-                onClick={(e) => { if (!isAuthenticated) { e.preventDefault(); openAuthModal(); } }}
+                onClick={(e) => { if (requireLoginRedirect()) { e.preventDefault(); } }}
                 className="text-sm text-primary hover:text-primary/80 font-medium transition-micro"
               >
                 Read more →
@@ -227,8 +236,7 @@ const FeedPost = ({ post }) => {
         <div className="flex items-center justify-between">
           <Button
             variant="ghost"
-            onClick={handleLike}
-            requireAuth
+            onClick={(e) => { e.stopPropagation(); handleLike(); }}
             className={`flex-1 ${isLiked ? 'text-primary' : 'text-text-secondary'}`}
             iconName="ThumbsUp"
             iconPosition="left"
@@ -238,8 +246,7 @@ const FeedPost = ({ post }) => {
           </Button>
           <Button
             variant="ghost"
-            onClick={() => setShowComments(!showComments)}
-            requireAuth
+            onClick={(e) => { e.stopPropagation(); if (requireLoginRedirect()) return; setShowComments(!showComments); }}
             className="flex-1 text-text-secondary"
             iconName="MessageCircle"
             iconPosition="left"
@@ -251,8 +258,7 @@ const FeedPost = ({ post }) => {
             variant="ghost"
             className="flex-1 text-text-secondary"
             iconName="Coins"
-            requireAuth
-            onClick={() => setShowDonate(true)}
+            onClick={(e) => { e.stopPropagation(); if (requireLoginRedirect()) return; setShowDonate(true); }}
             iconPosition="left"
             iconSize={16}
           >
@@ -262,7 +268,7 @@ const FeedPost = ({ post }) => {
             variant="ghost"
             className="flex-1 text-text-secondary"
             iconName="Share2"
-            onClick={handleShare}
+            onClick={(e) => { e.stopPropagation(); handleShare(); }}
             iconPosition="left"
             iconSize={16}
           >
@@ -273,8 +279,8 @@ const FeedPost = ({ post }) => {
 
       {/* Donate Modal (lightweight) */}
       {showDonate && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-card border border-border rounded-lg shadow-modal p-6 w-full max-w-sm">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onClick={() => setShowDonate(false)}>
+          <div className="bg-card border border-border rounded-lg shadow-modal p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-foreground">Support this {post.type}</h3>
               <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setShowDonate(false)}>
@@ -308,7 +314,7 @@ const FeedPost = ({ post }) => {
 
       {/* Comments Section */}
       {showComments && (
-        <div className="px-6 py-4 border-t border-border bg-muted/30">
+        <div className="px-6 py-4 border-t border-border bg-muted/30" onClick={(e) => e.stopPropagation()}>
           {/* Add Comment */}
           <div className="flex items-start space-x-3 mb-4">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
@@ -327,7 +333,6 @@ const FeedPost = ({ post }) => {
                   variant="default"
                   size="sm"
                   onClick={handleComment}
-                  requireAuth
                   disabled={!commentText.trim()}
                 >
                   Comment
