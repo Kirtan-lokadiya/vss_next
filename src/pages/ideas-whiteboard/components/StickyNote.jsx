@@ -18,7 +18,6 @@ const StickyNote = ({
   const [editTitle, setEditTitle] = useState(note.title);
   const textareaRef = useRef(null);
   const router = useRouter();
-  const navigate = router.push;
 
   const [{ isDragging }, drag] = useDrag({
     type: 'sticky-note',
@@ -72,13 +71,11 @@ const StickyNote = ({
     return colorMap[color] || colorMap.yellow;
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const cycleColor = () => {
+    const order = ['yellow', 'blue', 'green', 'pink', 'purple', 'orange'];
+    const idx = order.indexOf(note.color);
+    const next = order[(idx + 1) % order.length];
+    onUpdate(note.id, { color: next });
   };
 
   return (
@@ -124,12 +121,24 @@ const StickyNote = ({
                 size="icon"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onConnect(note.id);
+                  cycleColor();
                 }}
                 className="w-6 h-6 hover:bg-white/50"
-                title="Connect to other notes"
+                title="Change color"
               >
-                <Icon name="Link" size={12} />
+                <Icon name="Palette" size={12} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(`/search?q=${encodeURIComponent(note.title || '')}`);
+                }}
+                className="w-6 h-6 hover:bg-white/50"
+                title="Search this idea"
+              >
+                <Icon name="Globe" size={14} />
               </Button>
               <Button
                 variant="ghost"
@@ -142,18 +151,6 @@ const StickyNote = ({
                 title="Delete note"
               >
                 <Icon name="Trash2" size={12} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/search?q=${encodeURIComponent(note.title || '')}`);
-                }}
-                className="w-6 h-6 hover:bg-white/50"
-                title="Search this idea"
-              >
-                <Icon name="Globe" size={14} />
               </Button>
             </div>
           )}
@@ -177,56 +174,7 @@ const StickyNote = ({
           )}
         </div>
 
-        {/* Note Footer */}
-        {isEditing ? (
-          <div className="flex items-center justify-end space-x-2">
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={handleCancel}
-              className="h-6 px-2 text-xs"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="default"
-              size="xs"
-              onClick={handleSave}
-              className="h-6 px-2 text-xs"
-            >
-              Save
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between text-xs text-gray-600">
-            <div className="flex items-center space-x-1">
-              <Icon name="User" size={10} />
-              <span>{note.author}</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <Icon name="Clock" size={10} />
-              <span>{formatDate(note.createdAt)}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Category Tag */}
-        {note.category && (
-          <div className="absolute -top-2 -right-2">
-            <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-white border border-gray-300 rounded-full shadow-sm">
-              {note.category}
-            </span>
-          </div>
-        )}
-
-        {/* Connection Points */}
-        {note.connections && note.connections.length > 0 && (
-          <div className="absolute -bottom-1 -right-1">
-            <div className="w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-xs text-white font-bold">{note.connections.length}</span>
-            </div>
-          </div>
-        )}
+        {/* Footer removed per request */}
       </div>
     </div>
   );

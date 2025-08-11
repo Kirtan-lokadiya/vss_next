@@ -37,9 +37,8 @@ const WhiteboardCanvas = ({
     },
   });
 
-  // Handle mouse events for panning
   const handleMouseDown = (e) => {
-    if (e.button === 1 || (e.button === 0 && e.ctrlKey)) { // Middle mouse or Ctrl+click
+    if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
       setIsPanning(true);
       setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
       e.preventDefault();
@@ -67,121 +66,51 @@ const WhiteboardCanvas = ({
 
   useEffect(() => {
     if (isPanning) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
+      document.body.style.cursor = 'grabbing';
+    } else {
+      document.body.style.cursor = 'default';
     }
-  }, [isPanning, panStart]);
-
-  // Grid pattern for grid view mode
-  const renderGrid = () => {
-    if (viewMode !== 'grid') return null;
-
-    const gridSize = 20 * scale;
-    const canvasRect = canvasRef.current?.getBoundingClientRect();
-    if (!canvasRect) return null;
-
-    const lines = [];
-    const width = canvasRect.width;
-    const height = canvasRect.height;
-
-    // Vertical lines
-    for (let x = (panOffset.x % gridSize); x < width; x += gridSize) {
-      lines.push(
-        <line
-          key={`v-${x}`}
-          x1={x}
-          y1={0}
-          x2={x}
-          y2={height}
-          stroke="#e5e7eb"
-          strokeWidth={0.5}
-        />
-      );
-    }
-
-    // Horizontal lines
-    for (let y = (panOffset.y % gridSize); y < height; y += gridSize) {
-      lines.push(
-        <line
-          key={`h-${y}`}
-          x1={0}
-          y1={y}
-          x2={width}
-          y2={y}
-          stroke="#e5e7eb"
-          strokeWidth={0.5}
-        />
-      );
-    }
-
-    return (
-      <svg
-        className="absolute inset-0 pointer-events-none"
-        width="100%"
-        height="100%"
-      >
-        {lines}
-      </svg>
-    );
-  };
+    return () => {
+      document.body.style.cursor = 'default';
+    };
+  }, [isPanning]);
 
   return (
     <div
-      ref={(node) => {
-        canvasRef.current = node;
-        drop(node);
-      }}
-      className={`relative w-full h-full overflow-hidden bg-white ${
-        isPanning ? 'cursor-grabbing' : 'cursor-grab'
-      }`}
+      ref={canvasRef}
+      className="absolute inset-0 overflow-hidden"
       onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
       onClick={handleCanvasClick}
       style={{
-        backgroundImage: viewMode === 'grid' ? `radial-gradient(circle, #e5e7eb 1px, transparent 1px)` :'none',
-        backgroundSize: viewMode === 'grid' ? `${20 * scale}px ${20 * scale}px` : 'auto',
+        backgroundImage: `radial-gradient(circle, #e5e7eb 1px, transparent 1px)`,
+        backgroundSize: `${20 * scale}px ${20 * scale}px`,
         backgroundPosition: `${panOffset.x}px ${panOffset.y}px`
       }}
     >
-      {/* Grid overlay */}
-      {renderGrid()}
-
-      {/* Canvas content container */}
       <div
+        ref={drop}
         className="absolute inset-0"
         style={{
           transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${scale})`,
           transformOrigin: '0 0'
         }}
       >
-        {/* Connection lines */}
-        {connections.map((connection) => {
-          const fromNote = notes.find(n => n.id === connection.from);
-          const toNote = notes.find(n => n.id === connection.to);
-          
+        {/* Connections */}
+        {connections.map((conn, index) => {
+          const fromNote = notes.find(n => n.id === conn.from);
+          const toNote = notes.find(n => n.id === conn.to);
           if (!fromNote || !toNote) return null;
-          
+          const from = { x: fromNote.position.x + 128, y: fromNote.position.y + 96 };
+          const to = { x: toNote.position.x + 128, y: toNote.position.y + 96 };
           return (
-            <ConnectionLine
-              key={`${connection.from}-${connection.to}`}
-              from={{
-                x: fromNote.position.x + 128, // Center of note (256/2)
-                y: fromNote.position.y + 96   // Center of note (192/2)
-              }}
-              to={{
-                x: toNote.position.x + 128,
-                y: toNote.position.y + 96
-              }}
-              color={connection.color || '#6366f1'}
-            />
+            <ConnectionLine key={index} from={from} to={to} color={conn.color} />
           );
         })}
 
-        {/* Sticky notes */}
-        {notes.map((note) => (
+        {/* Notes */}
+        {notes.map(note => (
           <StickyNote
             key={note.id}
             note={note}
@@ -189,29 +118,10 @@ const WhiteboardCanvas = ({
             onDelete={onDeleteNote}
             onSelect={onSelectNote}
             isSelected={selectedNoteId === note.id}
-            onConnect={onConnectNotes}
-            scale={1} // Individual note scaling handled by canvas transform
+            onConnect={() => {}}
           />
         ))}
       </div>
-
-      {/* Canvas info overlay */}
-      <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm">
-        <div className="flex items-center space-x-4 text-xs text-gray-600">
-          <span>Notes: {notes.length}</span>
-          <span>Zoom: {Math.round(scale * 100)}%</span>
-          <span>Mode: {viewMode}</span>
-        </div>
-      </div>
-
-      {/* Pan instructions */}
-      {!isPanning && (
-        <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm">
-          <p className="text-xs text-gray-600">
-            Ctrl+Click or Middle mouse to pan
-          </p>
-        </div>
-      )}
     </div>
   );
 };

@@ -11,12 +11,23 @@ const Header = () => {
   const [showMobileMenu, setShowMobileMenu] = React.useState(false);
   const router = useRouter();
   const navigate = router.push;
+  const profileRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showProfileMenu && profileRef.current && !profileRef.current.contains(e.target)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showProfileMenu]);
 
   const navigationItems = [
     { label: 'Home', path: '/', icon: 'Home' },
     { label: 'Ideas', path: '/ideas-whiteboard', icon: 'Lightbulb' },
     { label: 'Network', path: '/connection-network-tree', icon: 'Users' },
-    { label: 'Products', path: '/products-showcase', icon: 'Package' },
+    { label: 'Questions', path: '/questions', icon: 'HelpCircle' },
   ];
 
   const isActivePath = (path) => router.pathname === path;
@@ -24,7 +35,6 @@ const Header = () => {
   const toggleProfileMenu = () => setShowProfileMenu(!showProfileMenu);
   const toggleMobileMenu = () => setShowMobileMenu(!showMobileMenu);
 
-  // Refactored search bar: always navigates to /search on focus or submit
   const handleSearchFocus = (e) => {
     e.preventDefault();
     navigate('/search');
@@ -86,6 +96,10 @@ const Header = () => {
         </div>
         {/* Right Section */}
         <div className="flex items-center space-x-2">
+          {/* Create Campaign */}
+          <Button variant="default" onClick={() => navigate('/campaigns/new')} iconName="Megaphone" iconPosition="left" className="hidden md:inline-flex">
+            Create Campaign
+          </Button>
           {/* Theme Switcher */}
           <ThemeSwitcher />
           {/* Mobile Menu Button */}
@@ -98,7 +112,7 @@ const Header = () => {
             <Icon name={showMobileMenu ? "X" : "Menu"} size={24} />
           </Button>
           {/* Profile Menu */}
-          <div className="relative">
+          <div className="relative" ref={profileRef}>
             <Button
               variant="ghost"
               size="icon"

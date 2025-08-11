@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
 import Input from '@/src/components/ui/Input';
 
-const PostCreationCard = () => {
+const PostCreationCard = ({ onPostCreated }) => {
   const [postContent, setPostContent] = useState('');
   const [showExpanded, setShowExpanded] = useState(false);
   const [selectedPostType, setSelectedPostType] = useState('thought');
+  const [media, setMedia] = useState(null); // { type: 'image'|'video'|'link', url, file }
+  const [linkUrl, setLinkUrl] = useState('');
+  const photoInputRef = useRef(null);
+  const videoInputRef = useRef(null);
 
   const postTypes = [
     { value: 'thought', label: 'Share a thought', icon: 'MessageCircle' },
@@ -20,10 +24,30 @@ const PostCreationCard = () => {
 
   const handlePost = () => {
     if (postContent.trim()) {
-      console.log('Posting:', { type: selectedPostType, content: postContent });
+      const payload = { 
+        id: Date.now(),
+        type: selectedPostType, 
+        content: postContent,
+        author: { name: 'John Doe', title: 'Member', company: 'LinkedBoard', avatar: null },
+        timestamp: new Date(),
+        likes: 0, comments: 0, shares: 0, views: 0,
+        hashtags: []
+      };
+      if (media) {
+        if (media.type === 'link') {
+          payload.media = { type: 'link', url: media.url };
+        } else if (media.type === 'image') {
+          payload.media = { type: 'image', url: media.url };
+        } else if (media.type === 'video') {
+          payload.media = { type: 'video', url: media.url };
+        }
+      }
+      onPostCreated && onPostCreated(payload);
       setPostContent('');
       setShowExpanded(false);
       setSelectedPostType('thought');
+      setMedia(null);
+      setLinkUrl('');
     }
   };
 
@@ -31,6 +55,30 @@ const PostCreationCard = () => {
     setPostContent('');
     setShowExpanded(false);
     setSelectedPostType('thought');
+    setMedia(null);
+    setLinkUrl('');
+  };
+
+  const handlePickPhoto = () => photoInputRef.current?.click();
+  const handlePickVideo = () => videoInputRef.current?.click();
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setMedia({ type: 'image', file, url });
+    }
+  };
+  const handleVideoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setMedia({ type: 'video', file, url });
+    }
+  };
+  const applyLink = () => {
+    if (linkUrl.trim()) {
+      setMedia({ type: 'link', url: linkUrl.trim() });
+    }
   };
 
   return (
@@ -101,16 +149,34 @@ const PostCreationCard = () => {
 
           {/* Media Options */}
           <div className="flex items-center space-x-4 py-3 border-t border-border">
-            <Button variant="ghost" size="sm" iconName="Image" iconPosition="left" iconSize={16}>
+            <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+            <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleVideoChange} />
+            <Button variant="ghost" size="sm" iconName="Image" iconPosition="left" iconSize={16} onClick={handlePickPhoto}>
               Photo
             </Button>
-            <Button variant="ghost" size="sm" iconName="Video" iconPosition="left" iconSize={16}>
+            <Button variant="ghost" size="sm" iconName="Video" iconPosition="left" iconSize={16} onClick={handlePickVideo}>
               Video
             </Button>
-            <Button variant="ghost" size="sm" iconName="Link" iconPosition="left" iconSize={16}>
-              Link
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Input type="url" placeholder="Paste link URL" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} className="h-9 w-48" />
+              <Button variant="outline" size="sm" onClick={applyLink}>Attach</Button>
+            </div>
           </div>
+
+          {/* Media Preview */}
+          {media && (
+            <div className="border border-border rounded-lg p-3 bg-muted/40">
+              {media.type === 'image' && (
+                <img src={media.url} alt="Selected" className="max-h-48 rounded" />
+              )}
+              {media.type === 'video' && (
+                <video src={media.url} controls className="max-h-48 rounded" />
+              )}
+              {media.type === 'link' && (
+                <div className="text-sm text-text-secondary break-all">{media.url}</div>
+              )}
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-3 border-t border-border">

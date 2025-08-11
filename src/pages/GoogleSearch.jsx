@@ -4,24 +4,23 @@ import Icon from '@/src/components/AppIcon';
 
 const GoogleSearch = () => {
   const router = useRouter();
-  const navigate = router.push;
 
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === 'Escape') {
-        navigate(-1);
+        router.back();
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [navigate]);
+  }, [router]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background relative">
       {/* Back Button */}
       <button
         className="absolute top-6 left-6 flex items-center space-x-2 bg-white dark:bg-background border border-border rounded-full px-4 py-2 shadow hover:bg-muted transition"
-        onClick={() => navigate(-1)}
+        onClick={() => router.back()}
         title="Go back"
       >
         <Icon name="ArrowLeft" size={20} />

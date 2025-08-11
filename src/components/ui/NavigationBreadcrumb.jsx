@@ -12,7 +12,7 @@ const NavigationBreadcrumb = ({ customBreadcrumbs = null, className = '' }) => {
     '/blog-detail-view': { label: 'Blog Post', icon: 'FileText' },
     '/ideas-whiteboard': { label: 'Ideas Whiteboard', icon: 'Lightbulb' },
     '/connection-network-tree': { label: 'Network', icon: 'Users' },
-    '/products-showcase': { label: 'Products', icon: 'Package' },
+    '/questions': { label: 'Questions', icon: 'HelpCircle' },
     '/search': { label: 'Search Results', icon: 'Search' }
   };
 

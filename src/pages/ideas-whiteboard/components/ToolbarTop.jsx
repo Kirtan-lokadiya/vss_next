@@ -8,8 +8,6 @@ const ToolbarTop = ({
   onZoomIn,
   onZoomOut,
   onResetZoom,
-  viewMode,
-  onViewModeChange,
   onSearch,
   searchQuery,
   onClearBoard,
@@ -23,23 +21,8 @@ const ToolbarTop = ({
   const zoomLevels = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
   const currentZoomIndex = zoomLevels.findIndex(level => Math.abs(level - scale) < 0.01);
 
-  const handleZoomSelect = (zoom) => {
-    if (zoom > scale) {
-      const steps = Math.round((zoom - scale) / 0.25);
-      for (let i = 0; i < steps; i++) {
-        onZoomIn();
-      }
-    } else if (zoom < scale) {
-      const steps = Math.round((scale - zoom) / 0.25);
-      for (let i = 0; i < steps; i++) {
-        onZoomOut();
-      }
-    }
-  };
-
   const handleSaveBoard = () => {
     onSave();
-    // Show temporary success message
     const button = document.querySelector('[data-save-button]');
     if (button) {
       const originalText = button.textContent;
@@ -52,41 +35,9 @@ const ToolbarTop = ({
 
   return (
     <div className="h-16 bg-white border-b border-border flex items-center justify-between px-4">
-      {/* Left Section - View Controls */}
+      {/* Left Section - Placeholder for future controls */}
       <div className="flex items-center space-x-4">
-        {/* Zoom Controls */}
-        <div className="flex items-center space-x-2">
-       
-          
-          
-     
-          
-        
-        </div>
-
         <div className="w-px h-6 bg-border"></div>
-
-        {/* View Mode Toggle */}
-        <div className="flex items-center space-x-1 bg-muted rounded-lg p-1">
-          <Button
-            variant={viewMode === 'freeform' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => onViewModeChange('freeform')}
-            className="h-8"
-          >
-            <Icon name="Move" size={14} className="mr-1" />
-            Freeform
-          </Button>
-          <Button
-            variant={viewMode === 'grid' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => onViewModeChange('grid')}
-            className="h-8"
-          >
-            <Icon name="Grid3X3" size={14} className="mr-1" />
-            Grid
-          </Button>
-        </div>
       </div>
 
       {/* Center Section - Search */}
@@ -117,7 +68,7 @@ const ToolbarTop = ({
         </div>
       </div>
 
-      {/* Right Section - Actions */}
+      {/* Right Section - Actions (empty) */}
       <div className="flex items-center space-x-2">     
       </div>
     </div>

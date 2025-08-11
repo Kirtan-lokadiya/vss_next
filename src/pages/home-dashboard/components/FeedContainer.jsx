@@ -3,7 +3,7 @@ import FeedPost from './FeedPost';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
 
-const FeedContainer = () => {
+const FeedContainer = ({ newPost }) => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -166,6 +166,12 @@ const FeedContainer = () => {
     // Initial load
     loadPosts();
   }, [filter]);
+
+  useEffect(() => {
+    if (newPost) {
+      setPosts(prev => [newPost, ...prev]);
+    }
+  }, [newPost]);
 
   const loadPosts = () => {
     setLoading(true);

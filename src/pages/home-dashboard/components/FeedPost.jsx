@@ -11,14 +11,51 @@ const FeedPost = ({ post }) => {
   const [likeCount, setLikeCount] = useState(post.likes || 0);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [donationPool, setDonationPool] = useState(post.donationPool || 0);
+  const [showDonate, setShowDonate] = useState(false);
+  const [donationAmount, setDonationAmount] = useState(5);
 
   const handleLike = () => {
     if (!isAuthenticated) {
       openAuthModal();
       return;
     }
-    setIsLiked(!isLiked);
-    setLikeCount(prev => (isLiked ? prev - 1 : prev + 1));
+    const nextLiked = !isLiked;
+    setIsLiked(nextLiked);
+    setLikeCount(prev => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
+    if (nextLiked) {
+      setShowDonate(true);
+    }
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: `Post by ${post.author.name}`,
+      text: post.content.slice(0, 120),
+      url: typeof window !== 'undefined' ? window.location.href : ''
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+        alert('Link copied to clipboard');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDonate = (amount) => {
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+    const parsed = Number(amount);
+    if (!isNaN(parsed) && parsed > 0) {
+      setDonationPool(prev => prev + parsed);
+      setShowDonate(false);
+    }
   };
 
   const handleComment = () => {
@@ -138,12 +175,19 @@ const FeedPost = ({ post }) => {
                     <Icon name="Link" size={20} className="text-text-secondary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-foreground truncate">{post.media.title}</h4>
-                    <p className="text-sm text-text-secondary mt-1 line-clamp-2">{post.media.description}</p>
-                    <span className="text-xs text-text-secondary mt-2 block">{post.media.domain}</span>
+                    <h4 className="font-medium text-foreground truncate">{post.media.title || post.media.url}</h4>
+                    {post.media.description && (
+                      <p className="text-sm text-text-secondary mt-1 line-clamp-2">{post.media.description}</p>
+                    )}
+                    {post.media.domain && (
+                      <span className="text-xs text-text-secondary mt-2 block">{post.media.domain}</span>
+                    )}
                   </div>
                 </div>
               </div>
+            )}
+            {post.media.type === 'video' && (
+              <video src={post.media.url} controls className="w-full max-h-80" />
             )}
           </div>
         )}
@@ -158,6 +202,11 @@ const FeedPost = ({ post }) => {
             ))}
           </div>
         )}
+
+        {/* Donation Pool Notice */}
+        <div className="mt-3 text-sm text-text-secondary">
+          <span className="font-medium text-foreground">Donation pool:</span> ${donationPool.toFixed(2)} (kept even if goal isn't met)
+        </div>
       </div>
 
       {/* Engagement Stats */}
@@ -200,25 +249,61 @@ const FeedPost = ({ post }) => {
           <Button
             variant="ghost"
             className="flex-1 text-text-secondary"
-            iconName="Share2"
+            iconName="Coins"
             requireAuth
+            onClick={() => setShowDonate(true)}
+            iconPosition="left"
+            iconSize={16}
+          >
+            Donate
+          </Button>
+          <Button
+            variant="ghost"
+            className="flex-1 text-text-secondary"
+            iconName="Share2"
+            onClick={handleShare}
             iconPosition="left"
             iconSize={16}
           >
             Share
           </Button>
-          <Button
-            variant="ghost"
-            className="flex-1 text-text-secondary"
-            iconName="Send"
-            requireAuth
-            iconPosition="left"
-            iconSize={16}
-          >
-            Send
-          </Button>
         </div>
       </div>
+
+      {/* Donate Modal (lightweight) */}
+      {showDonate && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+          <div className="bg-card border border-border rounded-lg shadow-modal p-6 w-full max-w-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-foreground">Support this {post.type}</h3>
+              <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setShowDonate(false)}>
+                <Icon name="X" size={16} />
+              </Button>
+            </div>
+            <p className="text-sm text-text-secondary mb-3">This is a demo donation. No real money is processed.</p>
+            <div className="flex items-center gap-2 mb-4">
+              <Button variant="outline" size="sm" onClick={() => handleDonate(1)}>$1</Button>
+              <Button variant="outline" size="sm" onClick={() => handleDonate(5)}>$5</Button>
+              <Button variant="outline" size="sm" onClick={() => handleDonate(10)}>$10</Button>
+              <Button variant="outline" size="sm" onClick={() => handleDonate(25)}>$25</Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={donationAmount}
+                onChange={(e) => setDonationAmount(Number(e.target.value))}
+                className="flex-1 px-3 py-2 border border-border rounded-md bg-background text-foreground"
+              />
+              <Button variant="default" onClick={() => handleDonate(donationAmount)}>
+                Donate
+              </Button>
+            </div>
+            <div className="text-xs text-text-secondary mt-3">Funds are kept even if the goal isn't met.</div>
+          </div>
+        </div>
+      )}
 
       {/* Comments Section */}
       {showComments && (

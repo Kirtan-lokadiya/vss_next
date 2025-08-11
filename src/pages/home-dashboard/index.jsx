@@ -8,6 +8,7 @@ import Icon from '@/src/components/AppIcon';
 
 const HomeDashboard = () => {
   const [showProfile, setShowProfile] = useState(false);
+  const [newPost, setNewPost] = useState(null);
 
   return (
     <div className="min-h-screen bg-background">
@@ -23,8 +24,8 @@ const HomeDashboard = () => {
       </Header>
       {/* Profile Modal */}
       {showProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-background rounded-lg shadow-2xl max-w-md w-full relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowProfile(false)}>
+          <div className="bg-white dark:bg-background rounded-lg shadow-2xl max-w-md w-full relative" onClick={(e) => e.stopPropagation()}>
             <button
               className="absolute top-2 right-2 text-xl p-2 rounded-full hover:bg-muted"
               onClick={() => setShowProfile(false)}
@@ -48,9 +49,9 @@ const HomeDashboard = () => {
               {/* Center Column - Main Feed */}
             <div>
                 {/* Post Creation */}
-                <PostCreationCard />
+                <PostCreationCard onPostCreated={setNewPost} />
                 {/* Feed Container */}
-                <FeedContainer />
+                <FeedContainer newPost={newPost} />
             </div>
           </div>
         </main>
