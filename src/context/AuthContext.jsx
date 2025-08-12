@@ -7,6 +7,7 @@ const AuthContext = createContext({
   isAuthenticated: false,
   login: async () => {},
   register: async () => {},
+  verifyEmailToken: async () => {},
   logout: () => {},
   openAuthModal: () => {},
   closeAuthModal: () => {},
@@ -21,7 +22,8 @@ export const AuthProvider = ({ children }) => {
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
-  const AUTH_BASE = process.env.NEXT_PUBLIC_AUTH_BASE_URL || 'http://localhost:5321/api/v1/auth';
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321';
+  const AUTH_BASE = `${BASE_URL}/api/v1/auth`;
 
   // Handle client-side mounting
   useEffect(() => {
@@ -36,33 +38,22 @@ export const AuthProvider = ({ children }) => {
     }
   }, [mounted]);
 
-  // Verify token when it changes
-  useEffect(() => {
-    const verify = async () => {
-      if (!token) return;
-      try {
-        const res = await fetch(`${AUTH_BASE}/verify?JWTToken=${encodeURIComponent(token)}`);
-        if (!res.ok) throw new Error('Token verification failed');
-      } catch (err) {
-        console.warn('Auth token invalid, clearing it');
-        setToken(null);
-        if (mounted) localStorage.removeItem('token');
-      }
-    };
-    verify();
-  }, [token, AUTH_BASE, mounted]);
+  const persistToken = useCallback((newToken) => {
+    setToken(newToken);
+    if (mounted) {
+      localStorage.setItem('token', newToken);
+    }
+  }, [mounted]);
 
   const handleAuthResponse = useCallback((data) => {
-    if (data && data.token) {
-      setToken(data.token);
-      if (mounted) {
-        localStorage.setItem('token', data.token);
-      }
+    // Support different shapes: { token } or { jwtToken }
+    const responseToken = data?.token || data?.jwtToken;
+    if (responseToken) {
+      persistToken(responseToken);
       setAuthModalOpen(false);
-      // Redirect to home after successful login
       router.push('/');
     }
-  }, [mounted, router]);
+  }, [persistToken, router]);
 
   const login = async (email, password) => {
     setLoading(true);
@@ -87,14 +78,33 @@ export const AuthProvider = ({ children }) => {
   const register = async ({ firstName, lastName, email, password }) => {
     setLoading(true);
     try {
-      const res = await fetch(`${AUTH_BASE}/register`, {
+      const res = await fetch(`${AUTH_BASE}/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: `${firstName} ${lastName}`.trim(), email, password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || 'Registration failed');
-      handleAuthResponse(data);
+      // API returns true and sends email; do not persist token yet
+      return { success: true };
+    } catch (err) {
+      console.error(err);
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyEmailToken = async (jwtTokenFromLink) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${AUTH_BASE}/verify?JWTToken=${encodeURIComponent(jwtTokenFromLink)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || 'Verification failed');
+      // Expect shape: { jwtToken }
+      if (data?.jwtToken) {
+        persistToken(data.jwtToken);
+      }
       return { success: true };
     } catch (err) {
       console.error(err);
@@ -112,9 +122,6 @@ export const AuthProvider = ({ children }) => {
     router.push('/login');
   };
 
-  const openAuthModal = () => setAuthModalOpen(true);
-  const closeAuthModal = () => setAuthModalOpen(false);
-
   return (
     <AuthContext.Provider
       value={{
@@ -123,9 +130,10 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         register,
+        verifyEmailToken,
         logout,
-        openAuthModal,
-        closeAuthModal,
+        openAuthModal: () => setAuthModalOpen(true),
+        closeAuthModal: () => setAuthModalOpen(false),
         authModalOpen,
       }}
     >
