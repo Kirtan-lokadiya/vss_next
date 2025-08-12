@@ -37,7 +37,7 @@ const Register = () => {
       alert('Please agree to the terms and conditions');
       return;
     }
-    await register(formData.firstName, formData.lastName, formData.email, formData.password);
+    await register({ firstName: formData.firstName, lastName: formData.lastName, email: formData.email, password: formData.password });
   };
 
   const handleGoogleSignUp = async () => {
