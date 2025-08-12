@@ -85,7 +85,8 @@ export const AuthProvider = ({ children }) => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || 'Registration failed');
-      // API returns true and sends email; do not persist token yet
+      // API returns true and sends email; redirect to verify email instructions
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
       return { success: true };
     } catch (err) {
       console.error(err);
