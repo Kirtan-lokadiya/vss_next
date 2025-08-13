@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import PasswordModal from '@/src/components/ui/PasswordModal';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import Header from '@/src/components/ui/Header';
@@ -18,6 +19,9 @@ const IdeasWhiteboard = () => {
   const [showDetailsPanel, setShowDetailsPanel] = useState(false);
   const [connectingMode, setConnectingMode] = useState(false);
   const [connectingFromId, setConnectingFromId] = useState(null);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [passwordIsSet, setPasswordIsSet] = useState(false);
+  const [pendingNoteData, setPendingNoteData] = useState(null);
 
   useEffect(() => {
     const mockNotes = [
@@ -101,7 +105,38 @@ const IdeasWhiteboard = () => {
     return () => clearTimeout(timer);
   }, [notes, connections]);
 
-  const handleCreateNote = useCallback((noteData) => {
+  const handleCreateNote = useCallback(async (noteData = {}) => {
+    // Check if password is set
+    const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321';
+    const SECURITY_BASE = `${BASE_URL}/api/v1/network-security`;
+    try {
+      const res = await fetch(`${SECURITY_BASE}/passkeys-user`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        // Password not set, open modal to set password
+        setPasswordIsSet(false);
+        setPendingNoteData(noteData);
+        setPasswordModalOpen(true);
+        return;
+      }
+      // Password is set, open modal to enter password
+      setPasswordIsSet(true);
+      setPendingNoteData(noteData);
+      setPasswordModalOpen(true);
+    } catch (err) {
+      setPasswordIsSet(false);
+      setPendingNoteData(noteData);
+      setPasswordModalOpen(true);
+    }
+  }, []);
+
+  // Called after password modal success
+  const handlePasswordSuccess = useCallback(() => {
+    // Create note after password is set/entered
+    const noteData = pendingNoteData || {};
     const newNote = {
       id: Date.now(),
       title: noteData.title || 'New Idea',
@@ -118,8 +153,9 @@ const IdeasWhiteboard = () => {
       comments: []
     };
     setNotes(prev => [...prev, newNote]);
-  }, []);
-
+    setPasswordModalOpen(false);
+    setPendingNoteData(null);
+  }, [pendingNoteData]);
   const handleUpdateNote = useCallback((noteId, updates) => {
     setNotes(prev => prev.map(note => 
       note.id === noteId ? { ...note, ...updates } : note
@@ -234,6 +270,12 @@ const IdeasWhiteboard = () => {
               >
                 <Icon name="Plus" size={24} />
               </button>
+              <PasswordModal
+                open={passwordModalOpen}
+                onClose={() => setPasswordModalOpen(false)}
+                onSuccess={handlePasswordSuccess}
+                isSet={passwordIsSet}
+              />
             </div>
           </div>
 

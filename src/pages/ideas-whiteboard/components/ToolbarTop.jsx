@@ -48,7 +48,7 @@ const ToolbarTop = ({
             placeholder="Search notes by title, content, or category..."
             value={searchQuery}
             onChange={(e) => onSearch(e.target.value)}
-            className="pl-10 pr-10"
+            className="pl-10 pr-10 bg-background dark:bg-[#23272f] text-foreground dark:text-white border border-input dark:border-[#3a3f4b]"
           />
           <Icon 
             name="Search" 
