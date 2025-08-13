@@ -6,6 +6,7 @@ import Header from '@/src/components/ui/Header';
 import NavigationBreadcrumb from '@/src/components/ui/NavigationBreadcrumb';
 import WhiteboardCanvas from './components/WhiteboardCanvas';
 import NoteDetailsPanel from './components/NoteDetailsPanel';
+import ToolbarTop from '@/src/pages/ideas-whiteboard/components/ToolbarTop';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
 
@@ -198,9 +199,9 @@ const IdeasWhiteboard = () => {
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="min-h-screen bg-background">
+        {/* Only one header and breadcrumb, not duplicated */}
         <Header />
         <div className="pt-16">
-          {/* Breadcrumb */}
           <div className="px-6 py-4 border-b border-border">
             <NavigationBreadcrumb />
           </div>
@@ -208,32 +209,11 @@ const IdeasWhiteboard = () => {
           {/* Main Content - no left/right panels */}
           <div className="h-[calc(100vh-8rem)] flex flex-col">
             {/* Top Bar with only search */}
-            <div className="h-16 bg-white border-b border-border flex items-center justify-between px-4">
-              <div className="flex-1 max-w-md mx-8">
-                <div className="relative">
-                  <input
-                    type="search"
-                    placeholder="Search notes by title, content, or category..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="pl-10 pr-10 w-full border border-border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                  <Icon 
-                    name="Search" 
-                    size={16} 
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary" 
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => handleSearch('')}
-                      className="absolute right-1 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded hover:bg-muted"
-                    >
-                      <Icon name="X" size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+            <ToolbarTop
+              scale={scale}
+              onSearch={handleSearch}
+              searchQuery={searchQuery}
+            />
 
             {/* Canvas */}
             <div className="flex-1 relative">

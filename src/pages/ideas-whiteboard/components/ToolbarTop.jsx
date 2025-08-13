@@ -34,7 +34,7 @@ const ToolbarTop = ({
   };
 
   return (
-    <div className="h-16 bg-white border-b border-border flex items-center justify-between px-4">
+    <div className="h-16 bg-background dark:bg-[#23272f] border-b border-border flex items-center justify-between px-4">
       {/* Left Section - Placeholder for future controls */}
       <div className="flex items-center space-x-4">
         <div className="w-px h-6 bg-border"></div>
@@ -48,7 +48,7 @@ const ToolbarTop = ({
             placeholder="Search notes by title, content, or category..."
             value={searchQuery}
             onChange={(e) => onSearch(e.target.value)}
-            className="pl-10 pr-10 bg-background dark:bg-[#23272f] text-foreground dark:text-white border border-input dark:border-[#3a3f4b]"
+            className="pl-10 pr-10 bg-white dark:bg-[#23272f] text-foreground dark:text-white border border-input dark:border-[#3a3f4b] focus:bg-white focus:dark:bg-[#23272f]"
           />
           <Icon 
             name="Search" 
