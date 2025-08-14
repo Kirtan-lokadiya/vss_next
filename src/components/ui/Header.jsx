@@ -98,10 +98,7 @@ const Header = () => {
         </div>
         {/* Right Section */}
         <div className="flex items-center space-x-2">
-          {/* Create Campaign */}
-          <Button variant="default" onClick={() => navigate('/campaigns/new')} iconName="Megaphone" iconPosition="left" className="hidden md:inline-flex">
-            Create Campaign
-          </Button>
+          {/* Create Campaign moved next to Share controls in feed */}
           {/* Theme Switcher */}
           <ThemeSwitcher />
           {/* Auth CTA when logged out */}

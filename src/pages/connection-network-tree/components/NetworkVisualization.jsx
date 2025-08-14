@@ -17,6 +17,7 @@ const NetworkVisualization = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hoveredConnection, setHoveredConnection] = useState(null);
+  const [popup, setPopup] = useState(null); // {x,y,connection}
 
   const viewModes = [
     { value: 'tree', label: 'Tree View', icon: 'GitBranch' },
@@ -100,8 +101,11 @@ const NetworkVisualization = ({
 
 
 
-  const handleNodeClick = (node) => {
+  const handleNodeClick = (node, position) => {
     onNodeSelect(node);
+    if (node && position) {
+      setPopup({ x: position.x, y: position.y, connection: node });
+    }
   };
 
   const handleConnectionHover = (connectionId) => {
@@ -229,7 +233,7 @@ const NetworkVisualization = ({
               stroke="#FFFFFF"
               strokeWidth={4}
               className="cursor-pointer"
-              onClick={() => handleNodeClick({ id: 'user', name: 'You' })}
+              onClick={() => handleNodeClick({ id: 'user', name: 'You' }, nodePositions.get('user'))}
             />
             <text
               x={nodePositions.get('user')?.x}
@@ -248,15 +252,21 @@ const NetworkVisualization = ({
 
             return (
               <g key={connection.id}>
+                {/* Node as avatar circle */}
+                <defs>
+                  <pattern id={`avatar-${connection.id}`} patternUnits="objectBoundingBox" width="1" height="1">
+                    <image href={connection.avatar} x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice" />
+                  </pattern>
+                </defs>
                 <circle
                   cx={position.x}
                   cy={position.y}
                   r={20}
-                  fill={getNodeColor(connection)}
+                  fill={connection.avatar ? `url(#avatar-${connection.id})` : getNodeColor(connection)}
                   stroke="#FFFFFF"
                   strokeWidth={3}
                   className="cursor-pointer hover:stroke-primary transition-colors"
-                  onClick={() => handleNodeClick(connection)}
+                  onClick={() => handleNodeClick(connection, position)}
                   onMouseEnter={() => handleConnectionHover(connection.id)}
                   onMouseLeave={() => handleConnectionHover(null)}
                 />
@@ -290,15 +300,20 @@ const NetworkVisualization = ({
 
               return (
                 <g key={`mutual-${connection.id}-${mutual.id}`}>
+                  <defs>
+                    <pattern id={`avatar-${connection.id}-${mutual.id}`} patternUnits="objectBoundingBox" width="1" height="1">
+                      <image href={mutual.avatar} x="0" y="0" width="24" height="24" preserveAspectRatio="xMidYMid slice" />
+                    </pattern>
+                  </defs>
                   <circle
                     cx={position.x}
                     cy={position.y}
                     r={12}
-                    fill="#65676B"
+                    fill={mutual.avatar ? `url(#avatar-${connection.id}-${mutual.id})` : '#65676B'}
                     stroke="#FFFFFF"
                     strokeWidth={2}
                     className="cursor-pointer hover:stroke-primary transition-colors opacity-70"
-                    onClick={() => handleNodeClick(mutual)}
+                    onClick={() => handleNodeClick(mutual, position)}
                   />
                   <text
                     x={position.x}
@@ -315,6 +330,23 @@ const NetworkVisualization = ({
           })}
         </g>
       </svg>
+
+      {/* Small Popup for node info */}
+      {popup && (
+        <div className="absolute" style={{ left: popup.x + 20, top: popup.y + 20 }}>
+          <div className="bg-card border border-border rounded-md shadow-card p-3 w-56">
+            <div className="flex items-center gap-2 mb-2">
+              <img src={popup.connection.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+              <div>
+                <div className="text-sm font-semibold text-foreground">{popup.connection.name}</div>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <a href="/profile" className="text-sm text-primary hover:underline">View Profile</a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Legend */}
       <div className="absolute bottom-4 left-4 bg-white border border-border rounded-lg p-3 shadow-card">

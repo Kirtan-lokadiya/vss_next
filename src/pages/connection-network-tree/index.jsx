@@ -283,16 +283,7 @@ const ConnectionNetworkTree = () => {
               />
             </div>
 
-            {/* Right Sidebar - Connection Details */}
-            <div className="lg:col-span-1">
-              <ConnectionDetails
-                selectedConnection={selectedNode}
-                onClose={() => setSelectedNode(null)}
-                onConnect={handleConnect}
-                onMessage={handleMessage}
-                className="sticky top-24"
-              />
-            </div>
+            {/* Right Sidebar removed per request; node popup shown in graph */}
           </div>
 
           {/* Mobile View Adjustments */}

@@ -132,9 +132,10 @@ const FeedPost = ({ post }) => {
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="w-8 h-8">
-            <Icon name="MoreHorizontal" size={16} />
-          </Button>
+          {/* 3-dot menu with Share and Save */}
+          <div className="relative">
+            <MoreMenu post={post} onShare={handleShare} />
+          </div>
         </div>
       </div>
 
@@ -258,16 +259,8 @@ const FeedPost = ({ post }) => {
           >
             Donate
           </Button>
-          <Button
-            variant="ghost"
-            className="flex-1 text-text-secondary"
-            iconName="Share2"
-            onClick={handleShare}
-            iconPosition="left"
-            iconSize={16}
-          >
-            Share
-          </Button>
+          {/* Graph button replaces Share */}
+          <OpenGraphButton post={post} />
         </div>
       </div>
 
@@ -360,3 +353,67 @@ const FeedPost = ({ post }) => {
 };
 
 export default FeedPost;
+
+// Inline lightweight components for menu and graph button
+const MoreMenu = ({ onShare }) => {
+  const [open, setOpen] = React.useState(false);
+  const menuRef = React.useRef(null);
+  React.useEffect(() => {
+    const onDoc = (e) => { if (open && menuRef.current && !menuRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  return (
+    <div className="relative" ref={menuRef}>
+      <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setOpen(!open)}>
+        <Icon name="MoreHorizontal" size={16} />
+      </Button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-40 bg-card border border-border rounded-md shadow-card z-10">
+          <button className="w-full text-left px-3 py-2 text-sm hover:bg-muted" onClick={() => { setOpen(false); onShare(); }}>
+            Share
+          </button>
+          <button className="w-full text-left px-3 py-2 text-sm hover:bg-muted" onClick={() => { setOpen(false); alert('Saved'); }}>
+            Save
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const OpenGraphButton = ({ post }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <Button
+        variant="ghost"
+        className="flex-1 text-text-secondary"
+        iconName="ChartBar"
+        onClick={() => setOpen(true)}
+        iconPosition="left"
+        iconSize={16}
+      >
+        Graph
+      </Button>
+      {open && (
+        <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}>
+          <div className="absolute inset-0 bg-black/20" />
+          <div className="absolute inset-y-0 right-0 w-full md:w-[40%] bg-card border-l border-border shadow-2xl" onClick={(e)=>e.stopPropagation()}>
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Post Graph</h3>
+              <Button variant="ghost" size="icon" onClick={() => setOpen(false)}><Icon name="X" size={16} /></Button>
+            </div>
+            {/* Dummy graph content */}
+            <div className="p-4">
+              <div className="h-72 bg-muted rounded-lg flex items-center justify-center mb-4">
+                <span className="text-text-secondary text-sm">Graph preview (dummy)</span>
+              </div>
+              <p className="text-sm text-text-secondary">Post: {post.content.slice(0,120)}...</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};

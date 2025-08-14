@@ -110,6 +110,17 @@ const PostCreationCard = ({ onPostCreated }) => {
               <span className="hidden sm:inline">{type.label}</span>
             </Button>
           ))}
+          {/* Create Campaign placed next to share buttons */}
+          <Button
+            variant="outline"
+            onClick={() => (window.location.href = '/campaigns/new')}
+            className="h-12 justify-start"
+            iconName="Megaphone"
+            iconPosition="left"
+            iconSize={20}
+          >
+            Create campaign
+          </Button>
         </div>
       ) : (
         /* Expanded Post Creation */
