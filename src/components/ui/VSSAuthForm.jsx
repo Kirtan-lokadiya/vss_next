@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/router';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import Button from './Button';
@@ -13,6 +14,7 @@ const VSSAuthForm = ({ mode = 'login' }) => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login, register } = useAuth();
+  const router = useRouter();
   const { showToast } = useToast();
 
   const handleInputChange = (e) => {
@@ -70,13 +72,13 @@ const VSSAuthForm = ({ mode = 'login' }) => {
     }
   };
 
-  const switchMode = () => {
-    setFormData({
-      fullName: '',
-      email: '',
-      password: '',
-      confirmPassword: ''
-    });
+  const goToOppositePage = () => {
+    setFormData({ fullName: '', email: '', password: '', confirmPassword: '' });
+    if (mode === 'login') {
+      router.push('/register');
+    } else {
+      router.push('/login');
+    }
   };
 
   return (
@@ -169,7 +171,7 @@ const VSSAuthForm = ({ mode = 'login' }) => {
                     </Button>
                     <Button
                       type="button"
-                      onClick={switchMode}
+                      onClick={goToOppositePage}
                       className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg text-base"
                     >
                       Create new account
@@ -187,7 +189,7 @@ const VSSAuthForm = ({ mode = 'login' }) => {
                     <div className="text-center">
                       <button
                         type="button"
-                        onClick={switchMode}
+                        onClick={goToOppositePage}
                         className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                       >
                         Already have an account? Log in
