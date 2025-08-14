@@ -1,6 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useToast } from '../src/context/ToastContext';
 
 const VerifyEmailPage = () => {
+  const { showToast } = useToast();
+  useEffect(() => {
+    showToast('Please check your email for a verification link.');
+  }, [showToast]);
   return (
     <div className="min-h-screen flex flex-col items-center justify-center">
       <h1 className="text-2xl font-bold mb-4 text-foreground">Check Your Email</h1>

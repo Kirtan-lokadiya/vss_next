@@ -1,0 +1,13 @@
+# Passkey System Environment Configuration
+# Copy this file to .env.local and update the values
+
+# Base URL for your API server
+NEXT_PUBLIC_BASE_URL=http://localhost:5321
+
+# Optional: Override specific API endpoints if needed
+# NEXT_PUBLIC_AUTH_BASE=http://localhost:5321/api/v1/auth
+# NEXT_PUBLIC_SECURITY_BASE=http://localhost:5321/api/v1/security
+# NEXT_PUBLIC_NOTES_BASE=http://localhost:5321/api/v1/notes
+
+# Note: All endpoints will be constructed from NEXT_PUBLIC_BASE_URL
+# unless explicitly overridden above 

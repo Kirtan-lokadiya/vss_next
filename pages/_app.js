@@ -1,5 +1,7 @@
 import { Provider } from 'react-redux'
 import { AuthProvider } from '../src/context/AuthContext'
+import { ToastProvider } from '../src/context/ToastContext'
+import { PasskeyProvider } from '../src/context/PasskeyContext'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import ErrorBoundary from '../src/components/ErrorBoundary'
@@ -13,10 +15,14 @@ function MyApp({ Component, pageProps }) {
     <ErrorBoundary>
       <Provider store={store}>
         <AuthProvider>
-          <DndProvider backend={HTML5Backend}>
-            <Component {...pageProps} />
-            <AuthModal />
-          </DndProvider>
+          <ToastProvider>
+            <PasskeyProvider>
+              <DndProvider backend={HTML5Backend}>
+                <Component {...pageProps} />
+                <AuthModal />
+              </DndProvider>
+            </PasskeyProvider>
+          </ToastProvider>
         </AuthProvider>
       </Provider>
     </ErrorBoundary>

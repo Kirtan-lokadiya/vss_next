@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../src/context/AuthContext';
 import { useRouter } from 'next/router';
 
 const PasswordSetupPage = () => {
@@ -7,17 +8,21 @@ const PasswordSetupPage = () => {
   const [error, setError] = useState('');
   const router = useRouter();
 
-  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321';
-  const SECURITY_BASE = `${BASE_URL}/api/v1/network-security`;
+  // Use local proxy route defined in next.config.js
+  const SECURITY_BASE = `/api/security`;
+  const { token } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${SECURITY_BASE}/passkeys`, {
+      const res = await fetch(`${SECURITY_BASE}/passkeys?password=${encodeURIComponent(password)}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : undefined,
+        },
         body: JSON.stringify({ password }),
       });
       const data = await res.json();

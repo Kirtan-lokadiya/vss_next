@@ -109,14 +109,17 @@ const IdeasWhiteboard = () => {
   const handleCreateNote = useCallback(async (noteData = {}) => {
     // Check if password is set
     const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321';
-    const SECURITY_BASE = `${BASE_URL}/api/v1/network-security`;
+  const SECURITY_BASE = `/api/security`;
     try {
       const res = await fetch(`${SECURITY_BASE}/passkeys-user`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },        
       });
       const data = await res.json();
-      if (!res.ok) {
+      if (data.customCode==404) {
         // Password not set, open modal to set password
         setPasswordIsSet(false);
         setPendingNoteData(noteData);
