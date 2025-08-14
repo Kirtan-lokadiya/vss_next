@@ -9,6 +9,9 @@ import NoteDetailsPanel from './components/NoteDetailsPanel';
 import ToolbarTop from '@/src/pages/ideas-whiteboard/components/ToolbarTop';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
+import { useAuth } from '@/src/context/AuthContext';
+import { getNotes, createEncryptedNote, updateNote } from '@/src/utils/notesApi';
+import { decryptNoteContent } from '@/src/utils/notesApi';
 
 const IdeasWhiteboard = () => {
   const [notes, setNotes] = useState([]);
@@ -23,72 +26,48 @@ const IdeasWhiteboard = () => {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [passwordIsSet, setPasswordIsSet] = useState(false);
   const [pendingNoteData, setPendingNoteData] = useState(null);
+  const [userPassword, setUserPassword] = useState('');
+  const { token } = useAuth();
 
-  useEffect(() => {
-    const mockNotes = [
-      {
-        id: 1,
-        title: "AI Integration Strategy",
-        content: "Explore how we can integrate AI into our product workflow to improve user experience and automate repetitive tasks.",
-        color: "blue",
-        category: "Ideas",
-        author: "John Doe",
-        createdAt: "2025-01-10T10:30:00Z",
-        position: { x: 100, y: 100 },
-        zIndex: 1,
-        comments: [
-          {
-            id: 1,
-            text: "This could really streamline our development process",
-            author: "Sarah Johnson",
-            timestamp: "2025-01-10T11:00:00Z"
-          }
-        ]
-      },
-      {
-        id: 2,
-        title: "User Feedback Analysis",
-        content: "Analyze recent user feedback to identify pain points and opportunities for improvement in our current features.",
-        color: "yellow",
-        category: "Research",
-        author: "Sarah Johnson",
-        createdAt: "2025-01-09T14:15:00Z",
-        position: { x: 400, y: 150 },
-        zIndex: 1,
-        comments: []
+  // Load notes from backend and (if unlocked) decrypt content
+  const loadNotes = useCallback(async () => {
+    if (!token) return;
+    const res = await getNotes(token, 1, 50);
+    if (!res.success) return;
+    let list = res.data || [];
+    // Map backend model to whiteboard note model
+    const mapped = await Promise.all(list.map(async (n) => {
+      const properties = n.properties || {};
+      let contentText = n.content;
+      if (userPassword) {
+        const decrypted = await decryptNoteContent(n.content, userPassword);
+        if (decrypted) contentText = decrypted;
       }
-    ];
+      return {
+        id: n.noteId || n.id,
+        title: `Note #${n.noteId || n.id}`,
+        content: contentText,
+        color: properties.color || 'yellow',
+        category: '',
+        author: '',
+        createdAt: new Date().toISOString(),
+        position: { x: properties.x || 100, y: properties.y || 100 },
+        zIndex: properties.z || 1,
+        comments: [],
+        raw: n,
+      };
+    }));
+    setNotes(mapped);
+    setFilteredNotes(mapped);
+  }, [token, userPassword]);
 
-    const mockConnections = [
-      { from: 1, to: 2, color: "#6366f1" }
-    ];
-
-    setNotes(mockNotes);
-    setConnections(mockConnections);
-    setFilteredNotes(mockNotes);
-  }, []);
-
-  useEffect(() => {
-    const savedNotes = localStorage.getItem('whiteboard-notes');
-    const savedConnections = localStorage.getItem('whiteboard-connections');
-    if (savedNotes) setNotes(JSON.parse(savedNotes));
-    if (savedConnections) setConnections(JSON.parse(savedConnections));
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('whiteboard-notes', JSON.stringify(notes));
-  }, [notes]);
-  useEffect(() => {
-    localStorage.setItem('whiteboard-connections', JSON.stringify(connections));
-  }, [connections]);
+  useEffect(() => { loadNotes(); }, [loadNotes]);
 
   useEffect(() => {
     if (searchQuery.trim()) {
       const filtered = notes.filter(note =>
-        note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        note.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        note.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        note.author.toLowerCase().includes(searchQuery.toLowerCase())
+        (note.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (note.content || '').toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredNotes(filtered);
     } else {
@@ -96,38 +75,24 @@ const IdeasWhiteboard = () => {
     }
   }, [notes, searchQuery]);
 
-  useEffect(() => {
-    const autoSave = () => {
-      localStorage.setItem('whiteboard-notes', JSON.stringify(notes));
-      localStorage.setItem('whiteboard-connections', JSON.stringify(connections));
-    };
-
-    const timer = setTimeout(autoSave, 2000);
-    return () => clearTimeout(timer);
-  }, [notes, connections]);
+  // No localStorage persistence — notes come from backend only
 
   const handleCreateNote = useCallback(async (noteData = {}) => {
-    // Check if password is set
-    const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321';
-  const SECURITY_BASE = `/api/security`;
+    // Always check passkey; if set, ask for password (to decrypt after fetch)
     try {
-      const res = await fetch(`${SECURITY_BASE}/passkeys-user`, {
+      const res = await fetch(`/api/security/passkeys-user`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-        },        
+        },
       });
       const data = await res.json();
-      if (data.customCode==404) {
-        // Password not set, open modal to set password
+      if (data?.errors && data.errors.message === 'Security Key Not Found') {
         setPasswordIsSet(false);
-        setPendingNoteData(noteData);
-        setPasswordModalOpen(true);
-        return;
+      } else {
+        setPasswordIsSet(true);
       }
-      // Password is set, open modal to enter password
-      setPasswordIsSet(true);
       setPendingNoteData(noteData);
       setPasswordModalOpen(true);
     } catch (err) {
@@ -135,31 +100,32 @@ const IdeasWhiteboard = () => {
       setPendingNoteData(noteData);
       setPasswordModalOpen(true);
     }
-  }, []);
+  }, [token]);
 
   // Called after password modal success
-  const handlePasswordSuccess = useCallback(() => {
-    // Create note after password is set/entered
-    const noteData = pendingNoteData || {};
-    const newNote = {
-      id: Date.now(),
-      title: noteData.title || 'New Idea',
-      content: noteData.content || 'Double-click to edit this note',
-      color: noteData.color || 'yellow',
-      category: noteData.category || '',
-      author: "John Doe",
-      createdAt: new Date().toISOString(),
-      position: { 
-        x: Math.random() * 400 + 100, 
-        y: Math.random() * 300 + 100 
-      },
-      zIndex: 1,
-      comments: []
-    };
-    setNotes(prev => [...prev, newNote]);
+  const handlePasswordSuccess = useCallback(async (enteredPassword) => {
+    setUserPassword(enteredPassword || userPassword);
+    // First load and decrypt notes for this user
+    await loadNotes();
+    // If creation was requested, create a blank note via API, then reload
+    if (pendingNoteData) {
+      const payload = {
+        content: pendingNoteData.content || 'New note',
+        properties: {
+          x: 100,
+          y: 100,
+          z: 5,
+          color: '#ffffff',
+          height: 100,
+          width: 200,
+        },
+      };
+      await createEncryptedNote(token, payload);
+      await loadNotes();
+    }
     setPasswordModalOpen(false);
     setPendingNoteData(null);
-  }, [pendingNoteData]);
+  }, [pendingNoteData, token, loadNotes, userPassword]);
   const handleUpdateNote = useCallback((noteId, updates) => {
     setNotes(prev => prev.map(note => 
       note.id === noteId ? { ...note, ...updates } : note
@@ -177,11 +143,11 @@ const IdeasWhiteboard = () => {
     }
   }, [selectedNoteId]);
 
-  const handleMoveNote = useCallback((noteId, newPosition) => {
-    setNotes(prev => prev.map(note =>
-      note.id === noteId ? { ...note, position: newPosition } : note
-    ));
-  }, []);
+  const handleMoveNote = useCallback(async (noteId, newPosition) => {
+    setNotes(prev => prev.map(note => (note.id === noteId ? { ...note, position: newPosition } : note)));
+    // Push to backend
+    await updateNote(token, noteId, { x: newPosition.x, y: newPosition.y });
+  }, [token]);
 
   const handleSelectNote = useCallback((noteId) => {
     setSelectedNoteId(noteId);

@@ -18,9 +18,11 @@ const PasswordModal = ({ open, onClose, onSuccess, isSet }) => {
       } else {
         const result = await checkPasskey();
         if (!result.success) throw new Error(result.message || 'Failed to fetch passkey');
+        if (result.isSet === false) throw new Error('Passkey not set');
       }
+      const pwd = password;
       setPassword('');
-      onSuccess();
+      onSuccess?.(pwd);
       onClose();
     } catch (err) {
       setError(err.message);

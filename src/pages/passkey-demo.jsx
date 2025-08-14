@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { usePasskey } from '../context/PasskeyContext';
 import { useAuth } from '../context/AuthContext';
-import PasskeyStatus from '../components/ui/PasskeyStatus';
-import PasskeyModal from '../components/ui/PasskeyModal';
-import NotesManager from '../components/ui/NotesManager';
+// Demo page no longer required in prod; keep minimal guard to avoid dead imports
+// You can delete this page if not needed
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { encryptMessage, decryptMessage, isPasskeyAvailable } from '../utils/encryption';

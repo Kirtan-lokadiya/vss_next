@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../src/context/AuthContext';
+import { usePasskey } from '../src/context/PasskeyContext';
 import { useRouter } from 'next/router';
 
 const PasswordSetupPage = () => {
@@ -8,27 +9,17 @@ const PasswordSetupPage = () => {
   const [error, setError] = useState('');
   const router = useRouter();
 
-  // Use local proxy route defined in next.config.js
-  const SECURITY_BASE = `/api/security`;
   const { token } = useAuth();
+  const { setPassword: createPasskey } = usePasskey();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${SECURITY_BASE}/passkeys?password=${encodeURIComponent(password)}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : undefined,
-        },
-        body: JSON.stringify({ password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || 'Failed to set password');
-      // After success, redirect to notes or wherever needed
-      router.replace('/ideas-whiteboard');
+      const result = await createPasskey(password);
+      if (!result.success) throw new Error(result.message || 'Failed to set password');
+      router.replace('/');
     } catch (err) {
       setError(err.message);
     } finally {

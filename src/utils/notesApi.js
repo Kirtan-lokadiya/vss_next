@@ -1,5 +1,6 @@
 // Notes API service with passkey integration for encrypted messaging
-import { getStoredPasskey, encryptMessage } from './encryption';
+import { getStoredPasskey } from './encryption';
+import { decryptContent, CryptoUtils } from './CryptoUtils';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321';
 const NOTES_BASE = `${BASE_URL}/api/v1/notes`;
@@ -21,11 +22,6 @@ export const getNotes = async (token, page = 1, size = 5) => {
       },
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to fetch notes');
-    }
-
     const data = await response.json();
     return { success: true, data };
   } catch (error) {
@@ -41,30 +37,55 @@ export const getNotes = async (token, page = 1, size = 5) => {
  * @param {string} password - User's password for encryption
  * @returns {Promise<Object>} Creation result
  */
-export const createEncryptedNote = async (token, noteData, password) => {
+// Helper: decode JWT and extract userId
+const decodeJwtPayload = (jwt) => {
+  try {
+    const [, payload] = jwt.split('.');
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(json);
+  } catch {
+    return {};
+  }
+};
+
+const getUserIdFromToken = (token) => {
+  const payload = decodeJwtPayload(token || '');
+  return payload.userId || payload.id || payload.sub || 0;
+};
+
+async function encryptNoteContentWithPasskey(plainText, passkey) {
+  const publicKey = await CryptoUtils.RSAUtils.decodePublicKey(passkey.publicKey);
+  return await CryptoUtils.RSAUtils.encryptWithPublicKey(plainText, publicKey);
+}
+
+export const createEncryptedNote = async (token, noteData) => {
   try {
     const passkey = getStoredPasskey();
     if (!passkey) {
       throw new Error('Passkey not available. Please set your password first.');
     }
 
-    // Encrypt the note content using the user's password and stored keys
-    const encryptedContent = await encryptNoteContent(noteData.content, password, passkey);
-    
-    if (!encryptedContent) {
-      throw new Error('Failed to encrypt note content');
-    }
+    // Client-side RSA encryption with stored public key
+    const encryptedContent = await encryptNoteContentWithPasskey(noteData.content, passkey);
 
     // Prepare the note payload with encrypted content
     const encryptedNotePayload = {
-      ...noteData,
+      userId: noteData.userId || getUserIdFromToken(token),
       content: encryptedContent,
-      encrypted: true,
-      encryptionMetadata: {
-        algorithm: 'AES-256-GCM',
-        keyId: passkey.id,
-        timestamp: new Date().toISOString()
-      }
+      properties: noteData.properties || {
+        x: 100,
+        y: 100,
+        z: 5,
+        color: '#ffffff',
+        height: 100,
+        width: 200,
+      },
     };
 
     const response = await fetch(`${NOTES_BASE}/`, {
@@ -128,7 +149,7 @@ export const createNote = async (token, noteData) => {
  */
 export const updateNote = async (token, noteId, updateData) => {
   try {
-    const response = await fetch(`${NOTES_BASE}/${noteId}`, {
+    const response = await fetch(`${NOTES_BASE}/properties/${noteId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -138,12 +159,27 @@ export const updateNote = async (token, noteId, updateData) => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to update note');
+      // Some endpoints return empty body on error; guard JSON parse
+      let message = 'Failed to update note';
+      try {
+        const errJson = await response.json();
+        if (errJson?.message) message = errJson.message;
+      } catch {
+        const errText = await response.text().catch(() => '');
+        if (errText) message = errText;
+      }
+      throw new Error(message);
     }
 
-    const updatedNote = await response.json();
-    return { success: true, note: updatedNote };
+    // Backend may return true/empty body; handle gracefully
+    let result = null;
+    try {
+      result = await response.json();
+    } catch {
+      const txt = await response.text().catch(() => '');
+      result = txt ? txt : true;
+    }
+    return { success: true, note: result };
   } catch (error) {
     console.error('Error updating note:', error);
     return { success: false, message: error.message };
@@ -218,17 +254,9 @@ const encryptNoteContent = async (content, password, passkey) => {
  */
 export const decryptNoteContent = async (encryptedContent, password) => {
   try {
-    // TODO: Implement actual decryption using the stored passkey and password
-    // This is a placeholder implementation
-    
-    if (encryptedContent.startsWith('encrypted_')) {
-      const parts = encryptedContent.split('_');
-      if (parts.length >= 2) {
-        return atob(parts[1]);
-      }
-    }
-    
-    return null;
+    const passkey = getStoredPasskey();
+    if (!passkey) throw new Error('Passkey not available');
+    return await decryptContent(passkey, password, encryptedContent);
   } catch (error) {
     console.error('Error decrypting note content:', error);
     return null;
