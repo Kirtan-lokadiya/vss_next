@@ -59,7 +59,7 @@ const IdeasWhiteboard = () => {
   // Load notes from backend and (if unlocked) decrypt content
   const loadNotes = useCallback(async () => {
     if (!token) return;
-    const res = await getNotes(token, 1, 50, userPassword);
+    const res = await getNotes(token, 1, 5, userPassword);
     if (!res.success) return;
     let list = res.data || [];
     // Map backend model to whiteboard note model
