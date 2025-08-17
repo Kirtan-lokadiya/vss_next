@@ -13,37 +13,26 @@ const NOTES_BASE = `${BASE_URL}/api/v1/notes`;
  * @param {string} password - User's notes password (required)
  * @returns {Promise<Object>} Notes data
  */
-export const getNotes = async (token, page = 1, size = 5, password) => {
+export async function getNotes(token, page = 1, size = 10, password = '') {
   try {
-    const query = new URLSearchParams({ page: String(page), size: String(size) });
-    if (password) {
-      query.append('password', password);
-    }
-    const response = await fetch(`${NOTES_BASE}/?${query.toString()}`, {
+    const url = `${NOTES_BASE}/?page=${page}&size=${size}${password ? `&password=${encodeURIComponent(password)}` : ''}`;
+    const res = await fetch(url, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
-
-    let data = null;
-    try {
-      data = await response.json();
-    } catch {
-      data = null;
+     const data = await res.json();
+      return {
+      success: true,
+      data: data.notes || [], 
     }
-    if (!response.ok) {
-      const message = (data && (data.message || data.errors?.message)) || `Failed to fetch notes (${response.status})`;
-      return { success: false, message };
-    }
-
-    return { success: true, data: data };
-  } catch (error) {
-    console.error('Error fetching notes:', error);
-    return { success: false, message: error.message };
+  } catch (err) {
+    return { success: false, error: err.message };
   }
-};
+}
+
 
 /**
  * Create a new encrypted note
@@ -267,16 +256,7 @@ const encryptNoteContent = async (content, password, passkey) => {
  * @param {string} password - User's password
  * @returns {Promise<string|null>} Decrypted content or null if failed
  */
-export const decryptNoteContent = async (encryptedContent, password) => {
-  try {
-    const passkey = getStoredPasskey();
-    if (!passkey) throw new Error('Passkey not available');
-    return await decryptContent(passkey, password, encryptedContent);
-  } catch (error) {
-    console.error('Error decrypting note content:', error);
-    return null;
-  }
-};
+
 
 /**
  * Check if a note is encrypted
