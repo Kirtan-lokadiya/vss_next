@@ -14,7 +14,9 @@ const ToolbarTop = ({
   onSave,
   isCollaborative,
   onToggleCollaboration,
-  collaborators
+  collaborators,
+  password,
+  onPasswordChange,
 }) => {
   const [showSearchOptions, setShowSearchOptions] = useState(false);
 
@@ -22,7 +24,7 @@ const ToolbarTop = ({
   const currentZoomIndex = zoomLevels.findIndex(level => Math.abs(level - scale) < 0.01);
 
   const handleSaveBoard = () => {
-    onSave();
+    onSave?.();
     const button = document.querySelector('[data-save-button]');
     if (button) {
       const originalText = button.textContent;
@@ -68,8 +70,15 @@ const ToolbarTop = ({
         </div>
       </div>
 
-      {/* Right Section - Actions (empty) */}
-      <div className="flex items-center space-x-2">     
+      {/* Right Section - Actions */}
+      <div className="flex items-center space-x-2">
+        <Input
+          type="password"
+          placeholder="Password"
+          value={password || ''}
+          onChange={(e) => onPasswordChange?.(e.target.value)}
+          className="w-40 bg-white dark:bg-[#23272f] text-foreground dark:text-white border border-input dark:border-[#3a3f4b]"
+        />
       </div>
     </div>
   );

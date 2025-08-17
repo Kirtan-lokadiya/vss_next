@@ -21,13 +21,14 @@ const IdeasWhiteboard = () => {
   const [showDetailsPanel, setShowDetailsPanel] = useState(false);
   const [connectingMode, setConnectingMode] = useState(false);
   const [connectingFromId, setConnectingFromId] = useState(null);
+  const [notesPassword, setNotesPassword] = useState('');
   const { token } = useAuth();
   const { showToast } = useToast();
 
   // Load notes from backend (backend handles decryption)
   const loadNotes = useCallback(async () => {
     if (!token) return;
-    const res = await getNotes(token, 1, 50);
+    const res = await getNotes(token, 1, 50, notesPassword);
     if (!res.success) {
       showToast(res.message || 'Failed to load notes');
       setNotes([]);
@@ -55,7 +56,7 @@ const IdeasWhiteboard = () => {
     });
     setNotes(mapped);
     setFilteredNotes(mapped);
-  }, [token, showToast]);
+  }, [token, showToast, notesPassword]);
 
   useEffect(() => { loadNotes(); }, [loadNotes]);
 
@@ -148,8 +149,10 @@ const IdeasWhiteboard = () => {
             {/* Top Bar with only search */}
             <ToolbarTop
               scale={scale}
-              onSearch={handleSearch}
+              onSearch={setSearchQuery}
               searchQuery={searchQuery}
+              password={notesPassword}
+              onPasswordChange={setNotesPassword}
             />
 
             {/* Canvas */}
