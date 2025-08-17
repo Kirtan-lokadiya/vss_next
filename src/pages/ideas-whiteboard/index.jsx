@@ -30,7 +30,8 @@ const IdeasWhiteboard = () => {
     if (!token) return;
     const res = await getNotes(token, 1, 50, notesPassword);
     if (!res.success) {
-      showToast(res.message || 'Failed to load notes');
+      const isWrongPassword = res.isWrongPassword || res.code === 1001 || /Decrypt/i.test(res.message || '');
+      showToast(isWrongPassword ? 'Incorrect password. Please try again.' : (res.message || 'Failed to load notes'));
       setNotes([]);
       setFilteredNotes([]);
       return;
