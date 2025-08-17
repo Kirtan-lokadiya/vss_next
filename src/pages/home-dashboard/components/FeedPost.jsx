@@ -4,27 +4,63 @@ import Icon from '@/src/components/AppIcon';
 import Image from '@/src/components/AppImage';
 import Button from '@/src/components/ui/Button';
 import { useAuth } from "../../../context/AuthContext";
+import { toggleLikePost, toggleSavePost, getAuthToken } from '@/src/utils/api';
 
 const FeedPost = ({ post }) => {
   const { isAuthenticated, openAuthModal } = useAuth();
   const [isLiked, setIsLiked] = useState(post.isLiked || false);
+  const [isSaved, setIsSaved] = useState(post.isSaved || false);
   const [likeCount, setLikeCount] = useState(post.likes || 0);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [donationPool, setDonationPool] = useState(post.donationPool || 0);
   const [showDonate, setShowDonate] = useState(false);
   const [donationAmount, setDonationAmount] = useState(5);
+  const [mutating, setMutating] = useState(false);
 
-  const handleLike = () => {
+  const handleLike = async () => {
     if (!isAuthenticated) {
       openAuthModal();
       return;
     }
+    if (mutating) return;
     const nextLiked = !isLiked;
     setIsLiked(nextLiked);
     setLikeCount(prev => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
-    if (nextLiked) {
-      setShowDonate(true);
+    if (nextLiked) setShowDonate(true);
+    try {
+      setMutating(true);
+      const token = getAuthToken();
+      await toggleLikePost({ postId: post.id, token });
+    } catch (e) {
+      // rollback on failure
+      setIsLiked(!nextLiked);
+      setLikeCount(prev => (!nextLiked ? prev + 1 : Math.max(0, prev - 1)));
+      console.error(e);
+      alert(e.message || 'Failed to update like');
+    } finally {
+      setMutating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+    if (mutating) return;
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
+    try {
+      setMutating(true);
+      const token = getAuthToken();
+      await toggleSavePost({ postId: post.id, token });
+    } catch (e) {
+      setIsSaved(!nextSaved);
+      console.error(e);
+      alert(e.message || 'Failed to update save');
+    } finally {
+      setMutating(false);
     }
   };
 
@@ -134,7 +170,7 @@ const FeedPost = ({ post }) => {
           </div>
           {/* 3-dot menu with Share and Save */}
           <div className="relative">
-            <MoreMenu post={post} onShare={handleShare} />
+            <MoreMenu post={post} onShare={handleShare} onSave={handleSave} isSaved={isSaved} />
           </div>
         </div>
       </div>
@@ -251,13 +287,13 @@ const FeedPost = ({ post }) => {
           <Button
             variant="ghost"
             className="flex-1 text-text-secondary"
-            iconName="Coins"
+            iconName={isSaved ? 'BookmarkCheck' : 'Bookmark'}
             requireAuth
-            onClick={() => setShowDonate(true)}
+            onClick={handleSave}
             iconPosition="left"
             iconSize={16}
           >
-            Donate
+            {isSaved ? 'Saved' : 'Save'}
           </Button>
           {/* Graph button replaces Share */}
           <OpenGraphButton post={post} />
@@ -355,7 +391,7 @@ const FeedPost = ({ post }) => {
 export default FeedPost;
 
 // Inline lightweight components for menu and graph button
-const MoreMenu = ({ onShare }) => {
+const MoreMenu = ({ onShare, onSave, isSaved }) => {
   const [open, setOpen] = React.useState(false);
   const menuRef = React.useRef(null);
   React.useEffect(() => {
@@ -373,8 +409,8 @@ const MoreMenu = ({ onShare }) => {
           <button className="w-full text-left px-3 py-2 text-sm hover:bg-muted" onClick={() => { setOpen(false); onShare(); }}>
             Share
           </button>
-          <button className="w-full text-left px-3 py-2 text-sm hover:bg-muted" onClick={() => { setOpen(false); alert('Saved'); }}>
-            Save
+          <button className="w-full text-left px-3 py-2 text-sm hover:bg-muted" onClick={() => { setOpen(false); onSave && onSave(); }}>
+            {isSaved ? 'Unsave' : 'Save'}
           </button>
         </div>
       )}

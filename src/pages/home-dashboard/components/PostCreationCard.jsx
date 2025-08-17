@@ -2,61 +2,60 @@ import React, { useState, useRef } from 'react';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
 import Input from '@/src/components/ui/Input';
+import { createIdea, getAuthToken } from '@/src/utils/api';
+import { extractUserId } from '@/src/utils/jwt';
 
 const PostCreationCard = ({ onPostCreated }) => {
   const [postContent, setPostContent] = useState('');
-  const [showExpanded, setShowExpanded] = useState(false);
-  const [selectedPostType, setSelectedPostType] = useState('thought');
+  const [showModal, setShowModal] = useState(false);
+  const [selectedPostType, setSelectedPostType] = useState('idea');
   const [media, setMedia] = useState(null); // { type: 'image'|'video'|'link', url, file }
   const [linkUrl, setLinkUrl] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const photoInputRef = useRef(null);
   const videoInputRef = useRef(null);
 
   const postTypes = [
-    { value: 'thought', label: 'Share a thought', icon: 'MessageCircle' },
     { value: 'idea', label: 'Share an idea', icon: 'Lightbulb' },
+    { value: 'thought', label: 'Share a thought', icon: 'MessageCircle' },
   ];
 
-  const handlePostTypeChange = (type) => {
-    setSelectedPostType(type);
-    setShowExpanded(true);
+  const openComposer = (type) => {
+    setSelectedPostType(type || 'idea');
+    setShowModal(true);
   };
 
-  const handlePost = () => {
-    if (postContent.trim()) {
-      const payload = { 
-        id: Date.now(),
-        type: selectedPostType, 
-        content: postContent,
-        author: { name: 'John Doe', title: 'Member', company: 'LinkedBoard', avatar: null },
-        timestamp: new Date(),
-        likes: 0, comments: 0, shares: 0, views: 0,
-        hashtags: []
-      };
-      if (media) {
-        if (media.type === 'link') {
-          payload.media = { type: 'link', url: media.url };
-        } else if (media.type === 'image') {
-          payload.media = { type: 'image', url: media.url };
-        } else if (media.type === 'video') {
-          payload.media = { type: 'video', url: media.url };
-        }
-      }
-      onPostCreated && onPostCreated(payload);
-      setPostContent('');
-      setShowExpanded(false);
-      setSelectedPostType('thought');
-      setMedia(null);
-      setLinkUrl('');
-    }
-  };
-
-  const handleCancel = () => {
+  const resetForm = () => {
     setPostContent('');
-    setShowExpanded(false);
-    setSelectedPostType('thought');
+    setSelectedPostType('idea');
     setMedia(null);
     setLinkUrl('');
+  };
+
+  const handlePost = async () => {
+    if (!postContent.trim()) return;
+    const token = getAuthToken();
+    const userId = extractUserId(token);
+    if (!token || !userId) {
+      alert('Please login first');
+      return;
+    }
+    try {
+      setSubmitting(true);
+      if (selectedPostType === 'idea') {
+        await createIdea({ userId, idea: postContent.trim(), token });
+      } else {
+        // For now backend supports idea endpoint. Could extend here for other types.
+        await createIdea({ userId, idea: postContent.trim(), token });
+      }
+      onPostCreated && onPostCreated();
+      resetForm();
+      setShowModal(false);
+    } catch (e) {
+      alert(e.message || 'Failed to post');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handlePickPhoto = () => photoInputRef.current?.click();
@@ -82,26 +81,30 @@ const PostCreationCard = ({ onPostCreated }) => {
   };
 
   return (
-    <div className="bg-card border border-border rounded-lg shadow-card p-6 mb-6">
-      {/* User Info */}
-      <div className="flex items-center space-x-3 mb-4">
-        <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-          <Icon name="User" size={24} color="white" />
+    <>
+      <div className="bg-card border border-border rounded-lg shadow-card p-6 mb-6">
+        {/* User Info */}
+        <div className="flex items-center space-x-3 mb-4">
+          <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
+            <Icon name="User" size={24} color="white" />
+          </div>
+          <div className="flex-1">
+            <button
+              className="w-full text-left px-4 py-3 border border-border rounded-full text-text-secondary hover:bg-muted"
+              onClick={() => openComposer('idea')}
+            >
+              What do you want to talk about?
+            </button>
+          </div>
         </div>
-        <div>
-          <h3 className="font-semibold text-foreground">John Doe</h3>
-          <p className="text-sm text-text-secondary">Share your thoughts with your network</p>
-        </div>
-      </div>
 
-      {!showExpanded ? (
-        /* Quick Post Options */
+        {/* Quick actions like LinkedIn */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {postTypes.map((type) => (
             <Button
               key={type.value}
               variant="ghost"
-              onClick={() => handlePostTypeChange(type.value)}
+              onClick={() => openComposer(type.value)}
               className="h-12 justify-start"
               iconName={type.icon}
               iconPosition="left"
@@ -110,7 +113,6 @@ const PostCreationCard = ({ onPostCreated }) => {
               <span className="hidden sm:inline">{type.label}</span>
             </Button>
           ))}
-          {/* Create Campaign placed next to share buttons */}
           <Button
             variant="outline"
             onClick={() => (window.location.href = '/campaigns/new')}
@@ -122,98 +124,110 @@ const PostCreationCard = ({ onPostCreated }) => {
             Create campaign
           </Button>
         </div>
-      ) : (
-        /* Expanded Post Creation */
-        <div className="space-y-4">
-          {/* Post Type Selector */}
-          <div className="flex items-center space-x-2 pb-3 border-b border-border">
-            {postTypes.map((type) => (
-              <Button
-                key={type.value}
-                variant={selectedPostType === type.value ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setSelectedPostType(type.value)}
-                iconName={type.icon}
-                iconPosition="left"
-                iconSize={16}
-              >
-                {type.label}
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onClick={() => setShowModal(false)}>
+          <div className="bg-card border border-border rounded-lg shadow-modal w-full max-w-2xl" onClick={(e)=>e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="text-lg font-semibold text-foreground">Create a post</h3>
+              <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setShowModal(false)}>
+                <Icon name="X" size={16} />
               </Button>
-            ))}
-          </div>
-
-          {/* Content Input */}
-          <div>
-            <textarea
-              value={postContent}
-              onChange={(e) => setPostContent(e.target.value)}
-              placeholder={`What's on your mind, John?`}
-              className="w-full min-h-32 p-4 border border-border rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              maxLength={3000}
-            />
-            <div className="flex justify-between items-center mt-2">
-              <span className="text-xs text-text-secondary">
-                {postContent.length}/3000 characters
-              </span>
             </div>
-          </div>
 
-          {/* Media Options */}
-          <div className="flex items-center space-x-4 py-3 border-t border-border">
-            <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-            <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleVideoChange} />
-            <Button variant="ghost" size="sm" iconName="Image" iconPosition="left" iconSize={16} onClick={handlePickPhoto}>
-              Photo
-            </Button>
-            <Button variant="ghost" size="sm" iconName="Video" iconPosition="left" iconSize={16} onClick={handlePickVideo}>
-              Video
-            </Button>
-            <div className="flex items-center space-x-2">
-              <Input type="url" placeholder="Paste link URL" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} className="h-9 w-48" />
-              <Button variant="outline" size="sm" onClick={applyLink}>Attach</Button>
-            </div>
-          </div>
+            <div className="p-4">
+              {/* Post Type Selector */}
+              <div className="flex items-center space-x-2 pb-3 border-b border-border mb-4">
+                {postTypes.map((type) => (
+                  <Button
+                    key={type.value}
+                    variant={selectedPostType === type.value ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setSelectedPostType(type.value)}
+                    iconName={type.icon}
+                    iconPosition="left"
+                    iconSize={16}
+                  >
+                    {type.label}
+                  </Button>
+                ))}
+              </div>
 
-          {/* Media Preview */}
-          {media && (
-            <div className="border border-border rounded-lg p-3 bg-muted/40">
-              {media.type === 'image' && (
-                <img src={media.url} alt="Selected" className="max-h-48 rounded" />
+              {/* Content Input */}
+              <div>
+                <textarea
+                  value={postContent}
+                  onChange={(e) => setPostContent(e.target.value)}
+                  placeholder={`What's on your mind?`}
+                  className="w-full min-h-32 p-4 border border-border rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  maxLength={3000}
+                />
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-xs text-text-secondary">
+                    {postContent.length}/3000 characters
+                  </span>
+                </div>
+              </div>
+
+              {/* Media Options */}
+              <div className="flex items-center space-x-4 py-3 border-t border-border mt-4">
+                <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleVideoChange} />
+                <Button variant="ghost" size="sm" iconName="Image" iconPosition="left" iconSize={16} onClick={handlePickPhoto}>
+                  Photo
+                </Button>
+                <Button variant="ghost" size="sm" iconName="Video" iconPosition="left" iconSize={16} onClick={handlePickVideo}>
+                  Video
+                </Button>
+                <div className="flex items-center space-x-2">
+                  <Input type="url" placeholder="Paste link URL" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} className="h-9 w-48" />
+                  <Button variant="outline" size="sm" onClick={applyLink}>Attach</Button>
+                </div>
+              </div>
+
+              {/* Media Preview */}
+              {media && (
+                <div className="border border-border rounded-lg p-3 bg-muted/40 mt-3">
+                  {media.type === 'image' && (
+                    <img src={media.url} alt="Selected" className="max-h-48 rounded" />
+                  )}
+                  {media.type === 'video' && (
+                    <video src={media.url} controls className="max-h-48 rounded" />
+                  )}
+                  {media.type === 'link' && (
+                    <div className="text-sm text-text-secondary break-all">{media.url}</div>
+                  )}
+                </div>
               )}
-              {media.type === 'video' && (
-                <video src={media.url} controls className="max-h-48 rounded" />
-              )}
-              {media.type === 'link' && (
-                <div className="text-sm text-text-secondary break-all">{media.url}</div>
-              )}
             </div>
-          )}
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-3 border-t border-border">
-            <div className="flex items-center space-x-2">
-              <Icon name="Globe" size={16} className="text-text-secondary" />
-              <span className="text-sm text-text-secondary">Anyone can see this post</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Button variant="ghost" onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button 
-                variant="default" 
-                onClick={handlePost}
-                disabled={!postContent.trim()}
-                iconName="Send"
-                iconPosition="right"
-                iconSize={16}
-              >
-                Post
-              </Button>
+            {/* Footer */}
+            <div className="flex items-center justify-between p-4 border-t border-border">
+              <div className="flex items-center space-x-2">
+                <Icon name="Globe" size={16} className="text-text-secondary" />
+                <span className="text-sm text-text-secondary">Anyone can see this post</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Button variant="ghost" onClick={() => { resetForm(); setShowModal(false); }}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="default" 
+                  onClick={handlePost}
+                  disabled={!postContent.trim() || submitting}
+                  iconName="Send"
+                  iconPosition="right"
+                  iconSize={16}
+                >
+                  {submitting ? 'Posting...' : 'Post'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
