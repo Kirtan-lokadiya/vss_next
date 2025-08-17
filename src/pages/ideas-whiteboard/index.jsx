@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import PasswordModal from '@/src/components/ui/PasswordModal';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import Header from '@/src/components/ui/Header';
@@ -8,10 +7,9 @@ import WhiteboardCanvas from './components/WhiteboardCanvas';
 import NoteDetailsPanel from './components/NoteDetailsPanel';
 import ToolbarTop from '@/src/pages/ideas-whiteboard/components/ToolbarTop';
 import Icon from '@/src/components/AppIcon';
-import Button from '@/src/components/ui/Button';
 import { useAuth } from '@/src/context/AuthContext';
-import { getNotes, createEncryptedNote, updateNote } from '@/src/utils/notesApi';
-import { decryptNoteContent } from '@/src/utils/notesApi';
+import { useToast } from '@/src/context/ToastContext';
+import { getNotes, createNote, updateNote } from '@/src/utils/notesApi';
 
 const IdeasWhiteboard = () => {
   const [notes, setNotes] = useState([]);
@@ -23,53 +21,24 @@ const IdeasWhiteboard = () => {
   const [showDetailsPanel, setShowDetailsPanel] = useState(false);
   const [connectingMode, setConnectingMode] = useState(false);
   const [connectingFromId, setConnectingFromId] = useState(null);
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [passwordIsSet, setPasswordIsSet] = useState(false);
-  const [pendingNoteData, setPendingNoteData] = useState(null);
-  const [userPassword, setUserPassword] = useState('');
   const { token } = useAuth();
+  const { showToast } = useToast();
 
-  // Prompt for password on mount if passkey exists (or to set one if missing)
-  useEffect(() => {
-    if (!token) return;
-    (async () => {
-      try {
-        const res = await fetch(`/api/security/passkeys-user`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        const data = await res.json();
-        if (data?.errors && data.errors.message === 'Security Key Not Found') {
-          setPasswordIsSet(false);
-        } else {
-          setPasswordIsSet(true);
-        }
-        setPasswordModalOpen(true);
-      } catch {
-        // If check fails, still prompt for password
-        setPasswordIsSet(true);
-        setPasswordModalOpen(true);
-      }
-    })();
-  }, [token]);
-
-  // Load notes from backend and (if unlocked) decrypt content
+  // Load notes from backend (backend handles decryption)
   const loadNotes = useCallback(async () => {
     if (!token) return;
-    const res = await getNotes(token, 1, 50, userPassword);
-    if (!res.success) return;
-    let list = res.data || [];
+    const res = await getNotes(token, 1, 50);
+    if (!res.success) {
+      showToast(res.message || 'Failed to load notes');
+      setNotes([]);
+      setFilteredNotes([]);
+      return;
+    }
+    const list = Array.isArray(res.data) ? res.data : [];
     // Map backend model to whiteboard note model
-    const mapped = await Promise.all(list.map(async (n) => {
+    const mapped = list.map((n) => {
       const properties = n.properties || {};
-      let contentText = n.content;
-      if (userPassword) {
-        const decrypted = await decryptNoteContent(n.content, userPassword);
-        if (decrypted) contentText = decrypted;
-      }
+      const contentText = n.content;
       return {
         id: n.noteId || n.id,
         title: `Note #${n.noteId || n.id}`,
@@ -83,10 +52,10 @@ const IdeasWhiteboard = () => {
         comments: [],
         raw: n,
       };
-    }));
+    });
     setNotes(mapped);
     setFilteredNotes(mapped);
-  }, [token, userPassword]);
+  }, [token, showToast]);
 
   useEffect(() => { loadNotes(); }, [loadNotes]);
 
@@ -102,57 +71,27 @@ const IdeasWhiteboard = () => {
     }
   }, [notes, searchQuery]);
 
-  // No localStorage persistence — notes come from backend only
-
+  // Create a new note (no client-side encryption)
   const handleCreateNote = useCallback(async (noteData = {}) => {
-    // Always check passkey; if set, ask for password (to decrypt after fetch)
-    try {
-      const res = await fetch(`/api/security/passkeys-user`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      const data = await res.json();
-      if (data?.errors && data.errors.message === 'Security Key Not Found') {
-        setPasswordIsSet(false);
-      } else {
-        setPasswordIsSet(true);
-      }
-      setPendingNoteData(noteData);
-      setPasswordModalOpen(true);
-    } catch (err) {
-      setPasswordIsSet(false);
-      setPendingNoteData(noteData);
-      setPasswordModalOpen(true);
+    const payload = {
+      content: noteData.content || 'New note',
+      properties: {
+        x: 100,
+        y: 100,
+        z: 5,
+        color: '#ffffff',
+        height: 100,
+        width: 200,
+      },
+    };
+    const res = await createNote(token, payload);
+    if (!res.success) {
+      showToast(res.message || 'Failed to create note');
+      return;
     }
-  }, [token]);
-
-  // Called after password modal success
-  const handlePasswordSuccess = useCallback(async (enteredPassword) => {
-    setUserPassword(enteredPassword || userPassword);
-    // First load and decrypt notes for this user
     await loadNotes();
-    // If creation was requested, create a blank note via API, then reload
-    if (pendingNoteData) {
-      const payload = {
-        content: pendingNoteData.content || 'New note',
-        properties: {
-          x: 100,
-          y: 100,
-          z: 5,
-          color: '#ffffff',
-          height: 100,
-          width: 200,
-        },
-      };
-      await createEncryptedNote(token, payload);
-      await loadNotes();
-    }
-    setPasswordModalOpen(false);
-    setPendingNoteData(null);
-  }, [pendingNoteData, token, loadNotes, userPassword]);
+  }, [token, loadNotes, showToast]);
+
   const handleUpdateNote = useCallback((noteId, updates) => {
     setNotes(prev => prev.map(note => 
       note.id === noteId ? { ...note, ...updates } : note
@@ -172,9 +111,11 @@ const IdeasWhiteboard = () => {
 
   const handleMoveNote = useCallback(async (noteId, newPosition) => {
     setNotes(prev => prev.map(note => (note.id === noteId ? { ...note, position: newPosition } : note)));
-    // Push to backend
-    await updateNote(token, noteId, { x: newPosition.x, y: newPosition.y });
-  }, [token]);
+    const result = await updateNote(token, noteId, { x: newPosition.x, y: newPosition.y });
+    if (!result.success) {
+      showToast(result.message || 'Failed to update note position');
+    }
+  }, [token, showToast]);
 
   const handleSelectNote = useCallback((noteId) => {
     setSelectedNoteId(noteId);
@@ -246,12 +187,6 @@ const IdeasWhiteboard = () => {
               >
                 <Icon name="Plus" size={24} />
               </button>
-              <PasswordModal
-                open={passwordModalOpen}
-                onClose={() => setPasswordModalOpen(false)}
-                onSuccess={handlePasswordSuccess}
-                isSet={passwordIsSet}
-              />
             </div>
           </div>
 
