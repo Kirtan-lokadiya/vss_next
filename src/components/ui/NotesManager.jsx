@@ -49,11 +49,17 @@ const NotesManager = ({ className = '' }) => {
   const loadNotes = async () => {
     setLoading(true);
     try {
+      if (!password) {
+        setNotes([]);
+        setLoading(false);
+        return;
+      }
       const result = await getNotes(token, currentPage, pageSize, password);
       if (result.success) {
         setNotes(result.data || []);
       } else {
-        showToast(result.message || 'Failed to load notes', 'error');
+        const isWrongPassword = result.code === 1001 || /Decrypt/i.test(result.message || '');
+        showToast(isWrongPassword ? 'Incorrect password. Please try again.' : (result.message || 'Failed to load notes'), 'error');
       }
     } catch (error) {
       showToast('Error loading notes', 'error');
@@ -357,6 +363,7 @@ const NotesManager = ({ className = '' }) => {
               placeholder="Enter password to view notes"
               className="w-56"
             />
+            <Button onClick={loadNotes} variant="outline">Unlock</Button>
           </div>
           {notes.length > 0 && (
             <div className="text-sm text-gray-500">

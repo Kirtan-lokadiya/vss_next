@@ -14,7 +14,9 @@ const ToolbarTop = ({
   onSave,
   isCollaborative,
   onToggleCollaboration,
-  collaborators
+  collaborators,
+  onPasswordChange,
+  notesPassword
 }) => {
   const [showSearchOptions, setShowSearchOptions] = useState(false);
 
@@ -70,6 +72,13 @@ const ToolbarTop = ({
 
       {/* Right Section - Actions (empty) */}
       <div className="flex items-center space-x-2">     
+        <Input
+          type="password"
+          placeholder="Notes password"
+          value={notesPassword || ''}
+          onChange={(e) => onPasswordChange && onPasswordChange(e.target.value)}
+          className="w-56 bg-white dark:bg-[#23272f] text-foreground dark:text-white border border-input dark:border-[#3a3f4b]"
+        />
       </div>
     </div>
   );

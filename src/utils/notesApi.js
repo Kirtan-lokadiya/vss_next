@@ -4,6 +4,7 @@ import { decryptContent, CryptoUtils } from './CryptoUtils';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321';
 const NOTES_BASE = `${BASE_URL}/api/v1/notes`;
+const SECURITY_BASE = `${BASE_URL}/api/v1/security`;
 
 /**
  * Get notes with pagination (requires password)
@@ -15,6 +16,43 @@ const NOTES_BASE = `${BASE_URL}/api/v1/notes`;
  */
 export const getNotes = async (token, page = 1, size = 5, password) => {
   try {
+    // Always verify passkey exists first
+    const passkeyResponse = await fetch(`${SECURITY_BASE}/passkeys-user`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    let passkeyData = null;
+    try {
+      passkeyData = await passkeyResponse.json();
+    } catch {
+      passkeyData = null;
+    }
+
+    if (!passkeyResponse.ok) {
+      const message = (passkeyData && (passkeyData.errors?.message || passkeyData.message)) || `Failed to verify passkey (${passkeyResponse.status})`;
+      const code = passkeyData?.customCode || passkeyData?.errors?.customCode || passkeyResponse.status;
+      return { success: false, code, message, data: [] };
+    }
+
+    // If server indicates no key
+    if (passkeyData?.errors?.message === 'Security Key Not Found') {
+      return { success: false, code: 0, message: 'Password not set for notes. Please set your password first.', data: [] };
+    }
+
+    // Expect a valid passkey payload
+    if (!passkeyData?.id || !passkeyData?.publicKey) {
+      return { success: false, code: 0, message: 'Unexpected passkey response', data: [] };
+    }
+
+    // Require password before calling notes API
+    if (!password) {
+      return { success: false, code: 0, message: 'Password is required to fetch notes', data: [] };
+    }
+
     const query = new URLSearchParams({ page: String(page), size: String(size) });
     if (password) query.append('password', password);
     const response = await fetch(`${NOTES_BASE}/?${query.toString()}`, {
