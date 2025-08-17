@@ -61,6 +61,11 @@ const IdeasWhiteboard = () => {
     if (!token) return;
     const res = await getNotes(token, 1, 5, userPassword);
     if (!res.success) {
+      // If incorrect password, prompt again
+      if (res.message && res.message.toLowerCase().includes('password')) {
+        setPasswordIsSet(true);
+        setPasswordModalOpen(true);
+      }
       setNotes([]);
       setFilteredNotes([]);
       return;

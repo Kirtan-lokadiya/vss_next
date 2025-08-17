@@ -36,26 +36,30 @@ export const getNotes = async (token, page = 1, size = 5, password) => {
 
     // Treat structured error payloads as failures even on 200
     if (data && typeof data === 'object' && data.errors) {
-      const message = data.errors?.message || 'Failed to fetch notes';
+      const code = data.errors?.customCode ?? data.customCode;
+      const backendMsg = data.errors?.message || 'Failed to fetch notes';
+      const message = code === 1001 ? 'Incorrect password' : backendMsg;
       return { success: false, message };
     }
 
     if (!response.ok) {
-      const message = (data && (data.message || data.errors?.message)) || `Failed to fetch notes (${response.status})`;
+      const code = data?.errors?.customCode ?? data?.customCode;
+      const backendMsg = (data && (data.message || data.errors?.message)) || `Failed to fetch notes (${response.status})`;
+      const message = code === 1001 ? 'Incorrect password' : backendMsg;
       return { success: false, message };
     }
 
-    // Normalize list payloads from various backend shapes
-    const list = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.content)
-        ? data.content
-        : Array.isArray(data?.items)
-          ? data.items
-          : Array.isArray(data?.results)
-            ? data.results
-            : Array.isArray(data?.notes)
-              ? data.notes
+    // Normalize list payloads from various backend shapes (prefer explicit "notes")
+    const list = Array.isArray(data?.notes)
+      ? data.notes
+      : Array.isArray(data)
+        ? data
+        : Array.isArray(data?.content)
+          ? data.content
+          : Array.isArray(data?.items)
+            ? data.items
+            : Array.isArray(data?.results)
+              ? data.results
               : Array.isArray(data?.rows)
                 ? data.rows
                 : Array.isArray(data?.records)
