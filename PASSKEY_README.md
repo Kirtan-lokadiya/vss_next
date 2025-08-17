@@ -264,7 +264,7 @@ async function createSecureNote(token, content, password) {
 }
 
 async function loadUserNotes(token) {
-  const result = await getNotes(token, 1, 10);
+  const result = await getNotes(token, 1, 10, "<your-notes-password>");
   if (result.success) {
     console.log('Notes loaded:', result.data);
   }

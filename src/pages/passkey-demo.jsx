@@ -216,7 +216,7 @@ const PasskeyDemo = () => {
               <ul className="space-y-1 ml-4">
                 <li><code>GET /api/v1/security/passkeys-user</code> - Check if passkey exists</li>
                 <li><code>POST /api/v1/security/passkeys?password=XXXX</code> - Set password and generate passkey</li>
-                <li><code>GET /api/v1/notes/?page=1&size=5</code> - Get notes with pagination</li>
+                <li><code>GET /api/v1/notes/?page=1&size=5&password=XXXX</code> - Get notes with pagination (requires password)</li>
                 <li><code>POST /api/v1/notes/</code> - Create new note (encrypted or regular)</li>
               </ul>
             </div>
