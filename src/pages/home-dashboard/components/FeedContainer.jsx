@@ -2,170 +2,26 @@ import React, { useState, useEffect } from 'react';
 import FeedPost from './FeedPost';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
+import { fetchFeed, fetchUserLiked, fetchUserSaved, getAuthToken, mapApiPostToUI } from '@/src/utils/api';
 
-const FeedContainer = ({ newPost }) => {
+const FeedContainer = ({ newPost, refreshKey }) => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState('all');
-
-  // Mock posts data
-  const mockPosts = [
-    {
-      id: 1,
-      type: 'thought',
-      author: {
-        name: 'Sarah Johnson',
-        title: 'Senior Product Manager',
-        company: 'TechCorp',
-        avatar: 'https://randomuser.me/api/portraits/women/32.jpg',
-        
-      },
-      content: `Just published a comprehensive guide on implementing AI-driven product development workflows. After 6 months of testing with our team, we've seen a 40% improvement in feature delivery speed and significantly better user satisfaction scores.`,
-      
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      likes: 127,
-      comments: 23,
-      shares: 15,
-      views: 1240,
-      isLiked: false,
-      hashtags: ['AI', 'ProductDevelopment', 'Innovation'],
-      recentComments: [
-        {
-          author: 'Michael Chen',content: 'This is exactly what we needed! Thanks for sharing the framework.',
-          timestamp: new Date(Date.now() - 30 * 60 * 1000)
-        }
-      ]
-    },
-    {
-      id: 2,
-      type: 'thought',
-      author: {
-        name: 'David Rodriguez',title: 'Engineering Manager',company: 'StartupXYZ',avatar: 'https://randomuser.me/api/portraits/men/45.jpg',
-        
-      },
-      content: `Remote work has fundamentally changed how we approach team collaboration. The key isn't just having the right tools, but creating intentional moments for connection and creativity.\n\nWhat strategies have worked best for your distributed teams?`,
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-      likes: 89,
-      comments: 31,
-      shares: 8,
-      views: 567,
-      isLiked: true,
-      hashtags: ['RemoteWork', 'TeamCollaboration', 'Leadership'],
-      recentComments: [
-        {
-          author: 'Emily Davis',
-          content: 'We do virtual coffee chats every Friday. Game changer!',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000)
-        },
-        {
-          author: 'Alex Kim',
-          content: 'Async standups have been crucial for our global team.',
-          timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000)
-        }
-      ]
-    },
-    {
-      id: 3,
-      type: 'idea',
-      author: {
-        name: 'Emily Rodriguez',
-        title: 'UX Designer',
-        company: 'DesignStudio',
-        avatar: 'https://randomuser.me/api/portraits/women/67.jpg',
-        
-      },
-      content: `💡 New idea: What if we created a "Digital Empathy Map" that tracks user emotional states throughout their journey with our products?\n\nImagine being able to identify friction points not just through analytics, but through emotional indicators. This could revolutionize how we approach user experience design.`,
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-      likes: 156,
-      comments: 42,
-      shares: 28,
-      views: 892,
-      isLiked: false,
-      hashtags: ['UXDesign', 'Innovation', 'UserResearch'],
-      media: {
-        type: 'link',
-        title: 'The Future of Emotional Design',
-        description: 'Exploring how emotional intelligence can transform digital product experiences',
-        domain: 'uxdesign.com'
-      },
-      recentComments: [
-        {
-          author: 'John Smith',
-          content: 'This could be huge for accessibility improvements too!',
-          timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000)
-        }
-      ]
-    },
-    {
-      id: 4,
-      type: 'update',
-      author: {
-        name: 'TechCorp Official',
-        title: 'Company Updates',
-        company: 'TechCorp',
-        avatar: null,
-        
-      },
-      content: `🎉 Exciting news! We're thrilled to announce the launch of our new AI-powered collaboration platform. After 18 months of development and testing with over 500 beta users, we're ready to transform how teams work together.\n\nKey features:\n• Real-time AI assistance for project planning\n• Smart meeting summaries and action items\n• Predictive workflow optimization\n• Seamless integration with existing tools`,
-      timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 hours ago
-      likes: 234,
-      comments: 67,
-      shares: 45,
-      views: 2100,
-      isLiked: false,
-      hashtags: ['ProductLaunch', 'AI', 'Collaboration'],
-      media: {
-        type: 'image',
-        url: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=800&h=400&fit=crop',
-        alt: 'Team collaboration platform interface'
-      },
-      recentComments: [
-        {
-          author: 'Lisa Wang',
-          content: 'Congratulations on the launch! Can\'t wait to try it out.',
-          timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000)
-        }
-      ]
-    },
-    {
-      id: 5,
-      type: 'share',
-      author: {
-        name: 'Michael Chen',
-        title: 'Data Scientist',
-        company: 'DataCorp',
-        avatar: 'https://randomuser.me/api/portraits/men/23.jpg',
-        
-      },
-      content: `Sharing this insightful article about the future of data privacy. As we build more AI-powered products, it's crucial we prioritize user privacy and transparent data practices.\n\nThe key takeaway: Privacy-first design isn't just ethical—it's becoming a competitive advantage.`,
-      timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
-      likes: 78,
-      comments: 19,
-      shares: 12,
-      views: 445,
-      isLiked: true,
-      hashtags: ['DataPrivacy', 'AI', 'Ethics'],
-      media: {
-        type: 'link',title: 'Privacy-First AI: Building Trust in the Digital Age',description: 'How companies are balancing innovation with user privacy in AI development',
-        domain: 'techreview.com'
-      },
-      recentComments: []
-    }
-  ];
+  const [page, setPage] = useState(1);
 
   const filterOptions = [
     { value: 'all', label: 'All Posts', icon: 'Grid3X3' },
-    { value: 'article', label: 'Articles', icon: 'FileText' },
-    { value: 'thought', label: 'Thoughts', icon: 'MessageCircle' },
+    { value: 'liked', label: 'Liked', icon: 'ThumbsUp' },
+    { value: 'saved', label: 'Saved', icon: 'Bookmark' },
     { value: 'idea', label: 'Ideas', icon: 'Lightbulb' },
-    { value: 'update', label: 'Updates', icon: 'Building' }
+    { value: 'thought', label: 'Thoughts', icon: 'MessageCircle' },
   ];
 
   useEffect(() => {
-    // Initial load
-    loadPosts();
-  }, [filter]);
+    loadPosts(true);
+  }, [filter, refreshKey]);
 
   useEffect(() => {
     if (newPost) {
@@ -173,31 +29,36 @@ const FeedContainer = ({ newPost }) => {
     }
   }, [newPost]);
 
-  const loadPosts = () => {
+  const loadPosts = async (reset = false) => {
     setLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      const filteredPosts = filter === 'all' 
-        ? mockPosts 
-        : mockPosts.filter(post => post.type === filter);
-      
-      setPosts(filteredPosts);
+    try {
+      const token = getAuthToken();
+      let data = [];
+      if (filter === 'liked') {
+        data = await fetchUserLiked({ token });
+      } else if (filter === 'saved') {
+        data = await fetchUserSaved({ token });
+      } else {
+        data = await fetchFeed({ page: 1, token });
+      }
+      let mapped = Array.isArray(data) ? data.map(mapApiPostToUI) : [];
+      if (filter === 'idea') mapped = mapped.filter(p => p.type === 'idea');
+      if (filter === 'thought') mapped = mapped.filter(p => p.type === 'thought');
+      setPosts(mapped);
+      setHasMore(false); // until pagination endpoint defined
+      setPage(1);
+    } catch (e) {
+      console.error(e);
+      setPosts([]);
+      setHasMore(false);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   const loadMorePosts = () => {
     if (loading || !hasMore) return;
-    
-    setLoading(true);
-    
-    // Simulate loading more posts
-    setTimeout(() => {
-      // For demo, we'll just show that there are no more posts
-      setHasMore(false);
-      setLoading(false);
-    }, 1000);
+    // Placeholder for future pagination
   };
 
   const SkeletonPost = () => (
@@ -226,6 +87,23 @@ const FeedContainer = ({ newPost }) => {
 
   return (
     <div className="space-y-6">
+      {/* Filter Bar */}
+      <div className="bg-card border border-border rounded-lg shadow-card p-2 flex flex-wrap gap-1">
+        {filterOptions.map((opt) => (
+          <Button
+            key={opt.value}
+            variant={filter === opt.value ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFilter(opt.value)}
+            iconName={opt.icon}
+            iconPosition="left"
+            iconSize={16}
+          >
+            {opt.label}
+          </Button>
+        ))}
+      </div>
+
       {/* Posts Feed */}
       <div>
         {posts.map((post) => (

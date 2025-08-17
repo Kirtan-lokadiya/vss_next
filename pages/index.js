@@ -9,6 +9,11 @@ import Icon from '../src/components/AppIcon';
 
 const HomePage = () => {
   const [showProfile, setShowProfile] = useState(false);
+  const [feedRefreshKey, setFeedRefreshKey] = useState(0);
+
+  const handlePosted = () => {
+    setFeedRefreshKey(Date.now());
+  };
 
   return (
     <>
@@ -57,9 +62,9 @@ const HomePage = () => {
               {/* Center Column - Main Feed */}
               <div>
                 {/* Post Creation */}
-                <PostCreationCard />
+                <PostCreationCard onPostCreated={handlePosted} />
                 {/* Feed Container */}
-                <FeedContainer />
+                <FeedContainer refreshKey={feedRefreshKey} />
               </div>
             </div>
           </main>
