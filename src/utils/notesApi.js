@@ -4,19 +4,87 @@ import { decryptContent, CryptoUtils } from './CryptoUtils';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321';
 const NOTES_BASE = `${BASE_URL}/api/v1/notes`;
+const SECURITY_BASE = `${BASE_URL}/api/v1/network-security`;
 
 /**
- * Get notes with pagination (requires password)
+ * Check if user has passkey set using security API
+ * @param {string} token - Authorization token
+ * @returns {Promise<Object>} Passkey check result
+ */
+export const checkPasskeyExists = async (token) => {
+  try {
+    const response = await fetch(`${SECURITY_BASE}/passkeys-user`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    
+    // Check if passkey exists by looking for the expected response structure
+    if (data.id && data.publicKey && data.encryptedPrivateKey) {
+      // Passkey exists - password is already set
+      return { 
+        success: true, 
+        isSet: true, 
+        passkey: {
+          id: data.id,
+          publicKey: data.publicKey,
+          encryptedPrivateKey: data.encryptedPrivateKey,
+          encryptedChecksum: data.encryptedChecksum,
+          salt: data.salt,
+          iv: data.iv,
+        }
+      };
+    } else {
+      // Passkey not set or error response
+      return { success: true, isSet: false };
+    }
+  } catch (error) {
+    console.error('Error checking passkey:', error);
+    return { success: false, message: error.message, isSet: false };
+  }
+};
+
+/**
+ * Get notes with pagination (requires password if passkey is set)
  * @param {string} token - Authorization token
  * @param {number} page - Page number (default: 1)
  * @param {number} size - Page size (default: 5)
- * @param {string} password - User's notes password (required)
+ * @param {string} password - User's notes password (required if passkey is set)
  * @returns {Promise<Object>} Notes data
  */
-export const getNotes = async (token, page = 1, size = 5, password) => {
+export const getNotes = async (token, page = 1, size = 50, password) => {
   try {
+    // First check if passkey is set
+    const passkeyCheck = await checkPasskeyExists(token);
+    
+    if (!passkeyCheck.success) {
+      return {
+        success: false,
+        code: 0,
+        message: passkeyCheck.message || 'Failed to check passkey status',
+        data: [],
+      };
+    }
+
+    // If passkey is set but no password provided, return error
+    if (passkeyCheck.isSet && !password) {
+      return {
+        success: false,
+        code: 1002,
+        message: 'Password required. Please unlock notes with your password.',
+        data: [],
+        requiresPassword: true,
+      };
+    }
+
+    // Build query parameters
     const query = new URLSearchParams({ page: String(page), size: String(size) });
     if (password) query.append('password', password);
+    
     const response = await fetch(`${NOTES_BASE}/?${query.toString()}`, {
       method: 'GET',
       headers: {
@@ -34,6 +102,18 @@ export const getNotes = async (token, page = 1, size = 5, password) => {
 
     const code = data?.customCode || data?.errors?.customCode || null;
     const message = (data && (data.errors?.message || data.message)) || (!response.ok ? `Failed to fetch notes (${response.status})` : null);
+
+    // Handle specific error cases
+    if (data && data.errors && data.errors.customCode === 1001) {
+      // Wrong password error
+      return {
+        success: false,
+        code: 1001,
+        message: 'Incorrect password. Please try again.',
+        data: [],
+        wrongPassword: true,
+      };
+    }
 
     // Treat any payload that includes an errors object or missing notes array as error
     if (!response.ok || (data && data.errors) || !Array.isArray(data?.notes)) {

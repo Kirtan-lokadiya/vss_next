@@ -9,7 +9,8 @@ import {
   updateNote,
   deleteNote,
   decryptNoteContent,
-  isNoteEncrypted
+  isNoteEncrypted,
+  checkPasskeyExists
 } from '../../utils/notesApi';
 import Button from './Button';
 import Input from './Input';
@@ -22,7 +23,13 @@ const NotesManager = ({ className = '' }) => {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(5);
+  const [pageSize] = useState(50);
+  
+  // Password states
+  const [password, setPassword] = useState('');
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [passkeyStatus, setPasskeyStatus] = useState({ isSet: false, checked: false });
+  const [passwordError, setPasswordError] = useState('');
   
   // Form states
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -36,24 +43,72 @@ const NotesManager = ({ className = '' }) => {
     width: 200
   });
   const [useEncryption, setUseEncryption] = useState(false);
-  const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load notes on component mount and when page changes
+  // Check passkey status on component mount
   useEffect(() => {
-    if (isAuthenticated && token) {
-      loadNotes();
+    if (isAuthenticated && token && !passkeyStatus.checked) {
+      checkUserPasskeyStatus();
     }
-  }, [isAuthenticated, token, currentPage, password]);
+  }, [isAuthenticated, token, passkeyStatus.checked]);
+
+  // Load notes when authenticated, passkey status is known, and password is provided (if needed)
+  useEffect(() => {
+    if (isAuthenticated && token && passkeyStatus.checked) {
+      if (passkeyStatus.isSet && !password) {
+        setShowPasswordPrompt(true);
+      } else {
+        loadNotes();
+      }
+    }
+  }, [isAuthenticated, token, currentPage, password, passkeyStatus]);
+
+  const checkUserPasskeyStatus = async () => {
+    try {
+      const result = await checkPasskeyExists(token);
+      if (result.success) {
+        setPasskeyStatus({ isSet: result.isSet, checked: true });
+        if (result.isSet) {
+          setShowPasswordPrompt(true);
+        }
+      } else {
+        showToast(result.message || 'Failed to check passkey status', 'error');
+      }
+    } catch (error) {
+      console.error('Error checking passkey status:', error);
+      showToast('Error checking passkey status', 'error');
+    }
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!password.trim()) {
+      setPasswordError('Please enter your password');
+      return;
+    }
+    
+    setPasswordError('');
+    setShowPasswordPrompt(false);
+    // loadNotes will be called by useEffect when password changes
+  };
 
   const loadNotes = async () => {
     setLoading(true);
+    setPasswordError('');
     try {
       const result = await getNotes(token, currentPage, pageSize, password);
       if (result.success) {
         setNotes(result.data || []);
       } else {
-        showToast(result.message || 'Failed to load notes', 'error');
+        if (result.code === 1001 && result.wrongPassword) {
+          setPasswordError('Incorrect password. Please try again.');
+          setPassword('');
+          setShowPasswordPrompt(true);
+        } else if (result.code === 1002 && result.requiresPassword) {
+          setShowPasswordPrompt(true);
+        } else {
+          showToast(result.message || 'Failed to load notes', 'error');
+        }
       }
     } catch (error) {
       showToast('Error loading notes', 'error');
@@ -71,8 +126,8 @@ const NotesManager = ({ className = '' }) => {
       return;
     }
 
-    if (useEncryption && !password.trim()) {
-      showToast('Please enter your password for encryption', 'error');
+    if (useEncryption && !passkeyStatus.isSet) {
+      showToast('Encryption requires a passkey to be set', 'error');
       return;
     }
 
@@ -94,7 +149,6 @@ const NotesManager = ({ className = '' }) => {
       if (result.success) {
         showToast('Note created successfully!', 'success');
         setNoteContent('');
-        setPassword('');
         setShowCreateForm(false);
         loadNotes(); // Refresh the notes list
       } else {
@@ -148,7 +202,6 @@ const NotesManager = ({ className = '' }) => {
 
   const resetForm = () => {
     setNoteContent('');
-    setPassword('');
     setNoteProperties({
       x: 10,
       y: 20,
@@ -171,6 +224,69 @@ const NotesManager = ({ className = '' }) => {
     );
   }
 
+  // Show password prompt if passkey is set and password not provided
+  if (showPasswordPrompt) {
+    return (
+      <div className={`bg-white dark:bg-gray-800 rounded-lg border p-6 ${className}`}>
+        <div className="max-w-md mx-auto">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              🔐 Unlock Notes
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              Your notes are password-protected. Please enter your password to access them.
+            </p>
+          </div>
+          
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Password
+              </label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError('');
+                }}
+                placeholder="Enter your notes password"
+                className="w-full"
+                required
+                autoFocus
+              />
+              {passwordError && (
+                <p className="text-red-600 text-sm mt-1">{passwordError}</p>
+              )}
+            </div>
+            
+            <div className="flex space-x-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setPassword('');
+                  setPasswordError('');
+                  // Could redirect or show different view
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={!password.trim() || loading}
+                className="flex-1"
+              >
+                {loading ? 'Unlocking...' : 'Unlock Notes'}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-lg border ${className}`}>
       {/* Header */}
@@ -183,6 +299,24 @@ const NotesManager = ({ className = '' }) => {
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               Create and manage your notes with optional encryption
             </p>
+            {passkeyStatus.isSet && (
+              <div className="flex items-center mt-2">
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  🔐 Password Protected
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setPassword('');
+                    setShowPasswordPrompt(true);
+                  }}
+                  className="ml-3 text-xs"
+                >
+                  Change Password
+                </Button>
+              </div>
+            )}
           </div>
           <Button
             onClick={() => setShowCreateForm(true)}
@@ -286,39 +420,30 @@ const NotesManager = ({ className = '' }) => {
             </div>
 
             {/* Encryption Options */}
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="useEncryption"
-                  checked={useEncryption}
-                  onChange={(e) => setUseEncryption(e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label htmlFor="useEncryption" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Encrypt this note
-                </label>
-              </div>
-              
-              {useEncryption && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Your Password
-                  </label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password for encryption"
-                    required={useEncryption}
-                    className="w-full"
+            {passkeyStatus.isSet && (
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="useEncryption"
+                    checked={useEncryption}
+                    onChange={(e) => setUseEncryption(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    This password will be used to encrypt your note content.
-                  </p>
+                  <label htmlFor="useEncryption" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Encrypt this note
+                  </label>
                 </div>
-              )}
-            </div>
+                
+                {useEncryption && (
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      This note will be encrypted using your current password.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Form Actions */}
             <div className="flex space-x-3 pt-2">
@@ -349,15 +474,6 @@ const NotesManager = ({ className = '' }) => {
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">
             Your Notes
           </h3>
-          <div className="flex items-center space-x-2">
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password to view notes"
-              className="w-56"
-            />
-          </div>
           {notes.length > 0 && (
             <div className="text-sm text-gray-500">
               Page {currentPage} of {Math.ceil(notes.length / pageSize)}
