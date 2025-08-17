@@ -16,9 +16,7 @@ const NOTES_BASE = `${BASE_URL}/api/v1/notes`;
 export const getNotes = async (token, page = 1, size = 5, password) => {
   try {
     const query = new URLSearchParams({ page: String(page), size: String(size) });
-    if (password) {
-      query.append('password', password);
-    }
+    if (password) query.append('password', password);
     const response = await fetch(`${NOTES_BASE}/?${query.toString()}`, {
       method: 'GET',
       headers: {
@@ -33,15 +31,24 @@ export const getNotes = async (token, page = 1, size = 5, password) => {
     } catch {
       data = null;
     }
-    if (!response.ok) {
-      const message = (data && (data.message || data.errors?.message)) || `Failed to fetch notes (${response.status})`;
-      return { success: false, message };
+
+    const code = data?.customCode || data?.errors?.customCode || null;
+    const message = (data && (data.errors?.message || data.message)) || (!response.ok ? `Failed to fetch notes (${response.status})` : null);
+
+    // Treat any payload that includes an errors object or missing notes array as error
+    if (!response.ok || (data && data.errors) || !Array.isArray(data?.notes)) {
+      return {
+        success: false,
+        code: code ?? (response.ok ? 0 : response.status),
+        message: message || 'Failed to fetch notes',
+        data: [],
+      };
     }
 
-    return { success: true, data: data };
+    return { success: true, data: data.notes };
   } catch (error) {
     console.error('Error fetching notes:', error);
-    return { success: false, message: error.message };
+    return { success: false, code: 0, message: error.message, data: [] };
   }
 };
 
@@ -142,16 +149,23 @@ export const createNote = async (token, noteData) => {
       body: JSON.stringify(noteData),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to create note');
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
     }
 
-    const createdNote = await response.json();
-    return { success: true, note: createdNote };
+    if (!response.ok || payload?.errors) {
+      const message = payload?.errors?.message || payload?.message || 'Failed to create note';
+      const code = payload?.customCode || payload?.errors?.customCode || (response.ok ? 0 : response.status);
+      throw Object.assign(new Error(message), { code });
+    }
+
+    return { success: true, note: payload };
   } catch (error) {
     console.error('Error creating note:', error);
-    return { success: false, message: error.message };
+    return { success: false, message: error.message, code: error.code };
   }
 };
 
@@ -174,19 +188,20 @@ export const updateNote = async (token, noteId, updateData) => {
     });
 
     if (!response.ok) {
-      // Some endpoints return empty body on error; guard JSON parse
       let message = 'Failed to update note';
+      let code = response.status;
       try {
         const errJson = await response.json();
-        if (errJson?.message) message = errJson.message;
+        if (errJson?.errors?.message) message = errJson.errors.message;
+        else if (errJson?.message) message = errJson.message;
+        if (errJson?.customCode || errJson?.errors?.customCode) code = errJson.customCode || errJson?.errors?.customCode;
       } catch {
         const errText = await response.text().catch(() => '');
         if (errText) message = errText;
       }
-      throw new Error(message);
+      throw Object.assign(new Error(message), { code });
     }
 
-    // Backend may return true/empty body; handle gracefully
     let result = null;
     try {
       result = await response.json();
@@ -197,7 +212,7 @@ export const updateNote = async (token, noteId, updateData) => {
     return { success: true, note: result };
   } catch (error) {
     console.error('Error updating note:', error);
-    return { success: false, message: error.message };
+    return { success: false, message: error.message, code: error.code };
   }
 };
 
@@ -217,15 +232,23 @@ export const deleteNote = async (token, noteId) => {
       },
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to delete note');
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+
+    if (!response.ok || payload?.errors) {
+      const message = payload?.errors?.message || payload?.message || 'Failed to delete note';
+      const code = payload?.customCode || payload?.errors?.customCode || (response.ok ? 0 : response.status);
+      throw Object.assign(new Error(message), { code });
     }
 
     return { success: true };
   } catch (error) {
     console.error('Error deleting note:', error);
-    return { success: false, message: error.message };
+    return { success: false, message: error.message, code: error.code };
   }
 };
 
