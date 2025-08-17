@@ -29,10 +29,37 @@ const IdeasWhiteboard = () => {
   const [userPassword, setUserPassword] = useState('');
   const { token } = useAuth();
 
+  // Prompt for password on mount if passkey exists (or to set one if missing)
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/security/passkeys-user`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        const data = await res.json();
+        if (data?.errors && data.errors.message === 'Security Key Not Found') {
+          setPasswordIsSet(false);
+        } else {
+          setPasswordIsSet(true);
+        }
+        setPasswordModalOpen(true);
+      } catch {
+        // If check fails, still prompt for password
+        setPasswordIsSet(true);
+        setPasswordModalOpen(true);
+      }
+    })();
+  }, [token]);
+
   // Load notes from backend and (if unlocked) decrypt content
   const loadNotes = useCallback(async () => {
     if (!token) return;
-    const res = await getNotes(token, 1, 50);
+    const res = await getNotes(token, 1, 50, userPassword);
     if (!res.success) return;
     let list = res.data || [];
     // Map backend model to whiteboard note model

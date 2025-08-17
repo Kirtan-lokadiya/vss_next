@@ -44,12 +44,12 @@ const NotesManager = ({ className = '' }) => {
     if (isAuthenticated && token) {
       loadNotes();
     }
-  }, [isAuthenticated, token, currentPage]);
+  }, [isAuthenticated, token, currentPage, password]);
 
   const loadNotes = async () => {
     setLoading(true);
     try {
-      const result = await getNotes(token, currentPage, pageSize);
+      const result = await getNotes(token, currentPage, pageSize, password);
       if (result.success) {
         setNotes(result.data || []);
       } else {
@@ -349,6 +349,15 @@ const NotesManager = ({ className = '' }) => {
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">
             Your Notes
           </h3>
+          <div className="flex items-center space-x-2">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password to view notes"
+              className="w-56"
+            />
+          </div>
           {notes.length > 0 && (
             <div className="text-sm text-gray-500">
               Page {currentPage} of {Math.ceil(notes.length / pageSize)}

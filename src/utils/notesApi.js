@@ -6,15 +6,20 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321';
 const NOTES_BASE = `${BASE_URL}/api/v1/notes`;
 
 /**
- * Get notes with pagination
+ * Get notes with pagination (requires password)
  * @param {string} token - Authorization token
  * @param {number} page - Page number (default: 1)
  * @param {number} size - Page size (default: 5)
+ * @param {string} password - User's notes password (required)
  * @returns {Promise<Object>} Notes data
  */
-export const getNotes = async (token, page = 1, size = 5) => {
+export const getNotes = async (token, page = 1, size = 5, password) => {
   try {
-    const response = await fetch(`${NOTES_BASE}/?page=${page}&size=${size}`, {
+    const query = new URLSearchParams({ page: String(page), size: String(size) });
+    if (password) {
+      query.append('password', password);
+    }
+    const response = await fetch(`${NOTES_BASE}/?${query.toString()}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -22,8 +27,18 @@ export const getNotes = async (token, page = 1, size = 5) => {
       },
     });
 
-    const data = await response.json();
-    return { success: true, data };
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+    if (!response.ok) {
+      const message = (data && (data.message || data.errors?.message)) || `Failed to fetch notes (${response.status})`;
+      return { success: false, message };
+    }
+
+    return { success: true, data: data };
   } catch (error) {
     console.error('Error fetching notes:', error);
     return { success: false, message: error.message };
