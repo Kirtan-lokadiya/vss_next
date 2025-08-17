@@ -8,15 +8,16 @@ const SECURITY_BASE = `${BASE_URL}/api/v1/security`;
 
 /**
  * Get notes with pagination (requires password)
+ * First checks passkey security, then fetches notes with password
  * @param {string} token - Authorization token
  * @param {number} page - Page number (default: 1)
- * @param {number} size - Page size (default: 5)
+ * @param {number} size - Page size (default: 50)
  * @param {string} password - User's notes password (required)
  * @returns {Promise<Object>} Notes data
  */
-export const getNotes = async (token, page = 1, size = 5, password) => {
+export const getNotes = async (token, page = 1, size = 50, password) => {
   try {
-    // Always verify passkey exists first
+    // STEP 1: Always verify passkey exists first - call {{security}}/passkeys-user GET
     const passkeyResponse = await fetch(`${SECURITY_BASE}/passkeys-user`, {
       method: 'GET',
       headers: {
@@ -32,30 +33,32 @@ export const getNotes = async (token, page = 1, size = 5, password) => {
       passkeyData = null;
     }
 
+    // Handle passkey response errors
     if (!passkeyResponse.ok) {
       const message = (passkeyData && (passkeyData.errors?.message || passkeyData.message)) || `Failed to verify passkey (${passkeyResponse.status})`;
       const code = passkeyData?.customCode || passkeyData?.errors?.customCode || passkeyResponse.status;
       return { success: false, code, message, data: [] };
     }
 
-    // If server indicates no key
-    if (passkeyData?.errors?.message === 'Security Key Not Found') {
+    // Check if passkey data indicates password is already set
+    // Response with id, publicKey, encryptedPrivateKey, etc. means password is set
+    if (!passkeyData?.id || !passkeyData?.publicKey || !passkeyData?.encryptedPrivateKey) {
       return { success: false, code: 0, message: 'Password not set for notes. Please set your password first.', data: [] };
     }
 
-    // Expect a valid passkey payload
-    if (!passkeyData?.id || !passkeyData?.publicKey) {
-      return { success: false, code: 0, message: 'Unexpected passkey response', data: [] };
-    }
-
-    // Require password before calling notes API
+    // STEP 2: Password is required to unlock notes
     if (!password) {
-      return { success: false, code: 0, message: 'Password is required to fetch notes', data: [] };
+      return { success: false, code: 0, message: 'Password is required to unlock notes', data: [] };
     }
 
-    const query = new URLSearchParams({ page: String(page), size: String(size) });
-    if (password) query.append('password', password);
-    const response = await fetch(`${NOTES_BASE}/?${query.toString()}`, {
+    // STEP 3: Call notes API with password - {{note}}/?page=1&size=50&password=8418
+    const query = new URLSearchParams({ 
+      page: String(page), 
+      size: String(size), 
+      password: String(password) 
+    });
+    
+    const notesResponse = await fetch(`${NOTES_BASE}/?${query.toString()}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -63,27 +66,46 @@ export const getNotes = async (token, page = 1, size = 5, password) => {
       },
     });
 
-    let data = null;
+    let notesData = null;
     try {
-      data = await response.json();
+      notesData = await notesResponse.json();
     } catch {
-      data = null;
+      notesData = null;
     }
 
-    const code = data?.customCode || data?.errors?.customCode || null;
-    const message = (data && (data.errors?.message || data.message)) || (!response.ok ? `Failed to fetch notes (${response.status})` : null);
+    // Handle notes API response
+    if (!notesResponse.ok || !notesData) {
+      const message = notesData?.errors?.message || notesData?.message || `Failed to fetch notes (${notesResponse.status})`;
+      const code = notesData?.customCode || notesData?.errors?.customCode || notesResponse.status;
+      return { success: false, code, message, data: [] };
+    }
 
-    // Treat any payload that includes an errors object or missing notes array as error
-    if (!response.ok || (data && data.errors) || !Array.isArray(data?.notes)) {
+    // Check for password error (customCode 1001)
+    if (notesData.errors && notesData.customCode === 1001) {
       return {
         success: false,
-        code: code ?? (response.ok ? 0 : response.status),
-        message: message || 'Failed to fetch notes',
+        code: 1001,
+        message: notesData.errors.message || 'Error Will Decrypt Content',
         data: [],
+        isWrongPassword: true
       };
     }
 
-    return { success: true, data: data.notes };
+    // Check for successful notes response
+    if (Array.isArray(notesData.notes)) {
+      return { success: true, data: notesData.notes };
+    }
+
+    // Handle any other error cases
+    const code = notesData?.customCode || notesData?.errors?.customCode || 0;
+    const message = notesData?.errors?.message || notesData?.message || 'Failed to fetch notes';
+    return {
+      success: false,
+      code,
+      message,
+      data: []
+    };
+
   } catch (error) {
     console.error('Error fetching notes:', error);
     return { success: false, code: 0, message: error.message, data: [] };

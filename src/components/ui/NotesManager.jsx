@@ -58,7 +58,7 @@ const NotesManager = ({ className = '' }) => {
       if (result.success) {
         setNotes(result.data || []);
       } else {
-        const isWrongPassword = result.code === 1001 || /Decrypt/i.test(result.message || '');
+        const isWrongPassword = result.isWrongPassword || result.code === 1001 || /Decrypt/i.test(result.message || '');
         showToast(isWrongPassword ? 'Incorrect password. Please try again.' : (result.message || 'Failed to load notes'), 'error');
       }
     } catch (error) {
