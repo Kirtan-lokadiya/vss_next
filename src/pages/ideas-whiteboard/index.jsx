@@ -60,8 +60,12 @@ const IdeasWhiteboard = () => {
   const loadNotes = useCallback(async () => {
     if (!token) return;
     const res = await getNotes(token, 1, 5, userPassword);
-    if (!res.success) return;
-    let list = res.data || [];
+    if (!res.success) {
+      setNotes([]);
+      setFilteredNotes([]);
+      return;
+    }
+    const list = Array.isArray(res.data) ? res.data : [];
     // Map backend model to whiteboard note model
     const mapped = await Promise.all(list.map(async (n) => {
       const properties = n.properties || {};

@@ -33,12 +33,38 @@ export const getNotes = async (token, page = 1, size = 5, password) => {
     } catch {
       data = null;
     }
+
+    // Treat structured error payloads as failures even on 200
+    if (data && typeof data === 'object' && data.errors) {
+      const message = data.errors?.message || 'Failed to fetch notes';
+      return { success: false, message };
+    }
+
     if (!response.ok) {
       const message = (data && (data.message || data.errors?.message)) || `Failed to fetch notes (${response.status})`;
       return { success: false, message };
     }
 
-    return { success: true, data: data };
+    // Normalize list payloads from various backend shapes
+    const list = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.content)
+        ? data.content
+        : Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data?.results)
+            ? data.results
+            : Array.isArray(data?.notes)
+              ? data.notes
+              : Array.isArray(data?.rows)
+                ? data.rows
+                : Array.isArray(data?.records)
+                  ? data.records
+                  : Array.isArray(data?.payload)
+                    ? data.payload
+                    : [];
+
+    return { success: true, data: list };
   } catch (error) {
     console.error('Error fetching notes:', error);
     return { success: false, message: error.message };
