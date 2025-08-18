@@ -3,7 +3,7 @@ import Icon from '../AppIcon';
 import Button from './Button';
 
 const ThemeSwitcher = ({ className = '' }) => {
-  const [theme, setTheme] = useState('system');
+  const [theme, setTheme] = useState('light');
   const [showDropdown, setShowDropdown] = useState(false);
 
   const themes = [
@@ -18,37 +18,23 @@ const ThemeSwitcher = ({ className = '' }) => {
       label: 'Dark',
       icon: 'Moon',
       description: 'Easy on the eyes'
-    },
-    {
-      value: 'system',
-      label: 'System',
-      icon: 'Monitor',
-      description: 'Follows your device setting'
     }
   ];
 
   useEffect(() => {
-    // Load theme preference from localStorage
-    const savedTheme = localStorage.getItem('theme') || 'system';
-    setTheme(savedTheme);
-    applyTheme(savedTheme);
+    // Load theme preference from localStorage, default to light
+    const savedTheme = localStorage.getItem('theme');
+    const initial = (savedTheme === 'dark' || savedTheme === 'light') ? savedTheme : 'light';
+    setTheme(initial);
+    applyTheme(initial);
   }, []);
 
   const applyTheme = (selectedTheme) => {
     const root = document.documentElement;
-    
     if (selectedTheme === 'dark') {
       root.classList.add('dark');
     } else if (selectedTheme === 'light') {
       root.classList.remove('dark');
-    } else {
-      // System theme
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (prefersDark) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
     }
   };
 
@@ -65,7 +51,7 @@ const ThemeSwitcher = ({ className = '' }) => {
 
   const getCurrentThemeIcon = () => {
     const currentTheme = themes.find(t => t.value === theme);
-    return currentTheme ? currentTheme.icon : 'Monitor';
+    return currentTheme ? currentTheme.icon : 'Sun';
   };
 
   // Close dropdown when clicking outside
@@ -82,16 +68,7 @@ const ThemeSwitcher = ({ className = '' }) => {
     }
   }, [showDropdown]);
 
-  // Listen for system theme changes
-  useEffect(() => {
-    if (theme === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = () => applyTheme('system');
-      
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    }
-  }, [theme]);
+  // No system theme syncing
 
   return (
     <div className={`relative theme-switcher ${className}`}>
