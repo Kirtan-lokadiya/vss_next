@@ -3,6 +3,7 @@ export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:53
 export const ENDPOINTS = {
   postBase: `${BASE_URL}/api/v1/posts`,
   feedBase: `${BASE_URL}/api/v1/feed`,
+  userBase: `${BASE_URL}/api/v1/users`,
 };
 
 export const getAuthToken = () => {
@@ -125,4 +126,56 @@ export const mapApiPostToUI = (apiPost) => {
     isSaved: !!apiPost?.save,
     hashtags: [],
   };
+};
+
+// User profile APIs
+export const fetchUserBasic = async ({ userId, token }) => {
+  const res = await fetch(`${ENDPOINTS.userBase}/${encodeURIComponent(userId)}`, {
+    headers: authHeaders(token),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = data?.message || 'Failed to load user';
+    throw new Error(message);
+  }
+  return data;
+};
+
+// Post graph API
+export const fetchPostGraph = async ({ postId, token }) => {
+  const res = await fetch(`${ENDPOINTS.postBase}/graph/${encodeURIComponent(postId)}`, {
+    headers: authHeaders(token),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = data?.message || 'Failed to load graph';
+    throw new Error(message);
+  }
+  return data; // expected shape: { users: [{ id, name, picture }] }
+};
+
+export const fetchUserProfile = async ({ userId, token }) => {
+  const res = await fetch(`${ENDPOINTS.userBase}/profile/${encodeURIComponent(userId)}`, {
+    headers: authHeaders(token),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = data?.message || 'Failed to load profile';
+    throw new Error(message);
+  }
+  return data;
+};
+
+export const updateUserProfile = async ({ profile, token }) => {
+  const res = await fetch(`${ENDPOINTS.userBase}/profile`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify(profile),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = data?.message || 'Failed to update profile';
+    throw new Error(message);
+  }
+  return data;
 };

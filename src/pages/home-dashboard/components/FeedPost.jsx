@@ -4,7 +4,7 @@ import Icon from '@/src/components/AppIcon';
 import Image from '@/src/components/AppImage';
 import Button from '@/src/components/ui/Button';
 import { useAuth } from "../../../context/AuthContext";
-import { toggleLikePost, toggleSavePost, getAuthToken } from '@/src/utils/api';
+import { toggleLikePost, toggleSavePost, getAuthToken, fetchPostGraph } from '@/src/utils/api';
 
 const FeedPost = ({ post }) => {
   const { isAuthenticated, openAuthModal } = useAuth();
@@ -420,13 +420,34 @@ const MoreMenu = ({ onShare, onSave, isSaved }) => {
 
 const OpenGraphButton = ({ post }) => {
   const [open, setOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState(null);
+  const [users, setUsers] = React.useState([]);
+
+  const openAndLoad = async () => {
+    setOpen(true);
+    setLoading(true);
+    setError(null);
+    try {
+      const token = getAuthToken();
+      const data = await fetchPostGraph({ postId: post.id, token });
+      setUsers(Array.isArray(data?.users) ? data.users : []);
+    } catch (e) {
+      console.error(e);
+      setError(e?.message || 'Failed to load graph');
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <Button
         variant="ghost"
         className="flex-1 text-text-secondary"
         iconName="ChartBar"
-        onClick={() => setOpen(true)}
+        onClick={openAndLoad}
         iconPosition="left"
         iconSize={16}
       >
@@ -440,12 +461,40 @@ const OpenGraphButton = ({ post }) => {
               <h3 className="text-sm font-semibold text-foreground">Post Graph</h3>
               <Button variant="ghost" size="icon" onClick={() => setOpen(false)}><Icon name="X" size={16} /></Button>
             </div>
-            {/* Dummy graph content */}
             <div className="p-4">
-              <div className="h-72 bg-muted rounded-lg flex items-center justify-center mb-4">
-                <span className="text-text-secondary text-sm">Graph preview (dummy)</span>
-              </div>
-              <p className="text-sm text-text-secondary">Post: {post.content.slice(0,120)}...</p>
+              {loading && (
+                <div className="h-72 bg-muted rounded-lg animate-pulse" />
+              )}
+              {error && (
+                <div className="text-sm text-error mb-3">{error}</div>
+              )}
+              {!loading && !error && (
+                <>
+                  {users.length === 0 ? (
+                    <div className="h-72 bg-muted rounded-lg flex items-center justify-center">
+                      <span className="text-text-secondary text-sm">No users to display</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {users.map((u) => (
+                        <div key={u.id} className="flex items-center gap-3 border border-border rounded-lg p-3">
+                          <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center overflow-hidden">
+                            {u.picture && u.picture !== 'None' ? (
+                              <img src={u.picture} alt={u.name} className="w-10 h-10 object-cover" />
+                            ) : (
+                              <Icon name="User" size={16} />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-foreground">{u.name}</div>
+                            <div className="text-xs text-text-secondary">ID: {u.id}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>

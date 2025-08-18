@@ -49,43 +49,26 @@ const Header = () => {
   return (
     <header className="fixed top-0 left-0 right-0 bg-background border-b border-border z-1000">
       <div className="flex items-center justify-between h-16 px-4 lg:px-6">
-        {/* Logo */}
-        <div className="flex items-center">
+        {/* Left: Hamburger + Logo */}
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Button variant="ghost" size="icon" onClick={toggleMobileMenu}>
+              <Icon name={showMobileMenu ? 'X' : 'Menu'} size={24} />
+            </Button>
+          </div>
           <Link href="/" className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <Icon name="Zap" size={20} color="white" />
             </div>
-            <span className="text-xl font-semibold text-foreground hidden sm:block">
-              LinkedBoard Pro
-            </span>
+            <span className="text-xl font-semibold text-foreground hidden sm:block">LinkedBoard Pro</span>
           </Link>
         </div>
-        {/* Desktop Navigation */}
-        <nav className="hidden lg:flex items-center space-x-1">
-          {navigationItems.map((item) => (
-            <Link
-              key={item.path}
-              href={item.path}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-micro ${
-                isActivePath(item.path)
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-text-secondary hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              <Icon name={item.icon} size={20} />
-              <span className="font-medium">{item.label}</span>
-            </Link>
-          ))}
-        </nav>
-        {/* Search Bar */}
+
+        {/* Search Bar centered */}
         <div className="flex-1 max-w-md mx-4 lg:mx-8">
           <form onSubmit={handleSearchSubmit} className="relative">
             <div className="relative">
-              <Icon 
-                name="Search" 
-                size={20} 
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary" 
-              />
+              <Icon name="Search" size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary" />
               <Input
                 type="search"
                 placeholder="Search posts, people, ideas..."
@@ -96,28 +79,16 @@ const Header = () => {
             </div>
           </form>
         </div>
-        {/* Right Section */}
+
+        {/* Right: Theme + Profile */}
         <div className="flex items-center space-x-2">
-          {/* Create Campaign moved next to Share controls in feed */}
-          {/* Theme Switcher */}
           <ThemeSwitcher />
-          {/* Auth CTA when logged out */}
           {!isAuthenticated && (
             <>
               <Link href="/login" className="hidden md:inline-block"><Button variant="ghost">Log In</Button></Link>
               <Link href="/register" className="hidden md:inline-block"><Button variant="secondary">Sign Up</Button></Link>
             </>
           )}
-          {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleMobileMenu}
-            className="lg:hidden"
-          >
-            <Icon name={showMobileMenu ? "X" : "Menu"} size={24} />
-          </Button>
-          {/* Profile Menu */}
           <div className="relative" ref={profileRef}>
             <Button
               variant="ghost"
@@ -127,7 +98,6 @@ const Header = () => {
             >
               <Icon name="User" size={20} />
             </Button>
-            {/* Profile Dropdown */}
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-modal z-1010">
                 <div className="p-4 border-b border-border">
@@ -165,26 +135,33 @@ const Header = () => {
           </div>
         </div>
       </div>
-      {/* Mobile Navigation Menu */}
+
+      {/* Left Sidebar Drawer */}
       {showMobileMenu && (
-        <div className="lg:hidden bg-background border-t border-border">
-          <nav className="p-4 space-y-2">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.path}
-                href={item.path}
-                onClick={() => setShowMobileMenu(false)}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-micro ${
-                  isActivePath(item.path)
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-text-secondary hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                <Icon name={item.icon} size={20} />
-                <span className="font-medium">{item.label}</span>
-              </Link>
-            ))}
-          </nav>
+        <div className="fixed inset-0 z-1000" onClick={() => setShowMobileMenu(false)}>
+          <div className="absolute inset-0 bg-black/20" />
+          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-background border-r border-border shadow-2xl" onClick={(e)=>e.stopPropagation()}>
+            <div className="h-16 flex items-center px-4 border-b border-border">
+              <span className="text-lg font-semibold text-foreground">Menu</span>
+            </div>
+            <nav className="p-2">
+              {navigationItems.map((item) => (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  onClick={() => setShowMobileMenu(false)}
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-micro ${
+                    isActivePath(item.path)
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-text-secondary hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <Icon name={item.icon} size={20} />
+                  <span className="font-medium">{item.label}</span>
+                </Link>
+              ))}
+            </nav>
+          </aside>
         </div>
       )}
     </header>
