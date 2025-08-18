@@ -112,7 +112,7 @@ export const mapApiPostToUI = (apiPost) => {
     avatar: apiPost?.user?.picture && apiPost.user.picture !== 'None' ? apiPost.user.picture : null,
   };
   const typeLower = (apiPost?.type || 'thought').toString().toLowerCase();
-  return {
+  const ui = {
     id: apiPost?.id,
     type: typeLower,
     author,
@@ -126,6 +126,13 @@ export const mapApiPostToUI = (apiPost) => {
     isSaved: !!apiPost?.save,
     hashtags: [],
   };
+  // Extract hashtags from content
+  try {
+    const text = ui.content || '';
+    const matches = text.match(/#([\p{L}0-9_]+)/gu) || [];
+    ui.hashtags = Array.from(new Set(matches.map(m => m.replace(/^#/, '').toLowerCase())));
+  } catch {}
+  return ui;
 };
 
 // User profile APIs

@@ -128,7 +128,7 @@ const FeedPost = ({ post }) => {
   };
 
   return (
-    <div className="bg-card border border-border rounded-lg shadow-card mb-6">
+    <div className="bg-card border border-border rounded-2xl shadow-card mb-6">
       {/* Post Header */}
       <div className="p-6 pb-4">
         <div className="flex items-start justify-between">
@@ -266,7 +266,7 @@ const FeedPost = ({ post }) => {
             variant="ghost"
             onClick={handleLike}
             requireAuth
-            className={`flex-1 ${isLiked ? 'text-primary' : 'text-text-secondary'}`}
+            className={`flex-1 rounded-full ${isLiked ? 'text-primary' : 'text-text-secondary'}`}
             iconName="ThumbsUp"
             iconPosition="left"
             iconSize={16}
@@ -277,7 +277,7 @@ const FeedPost = ({ post }) => {
             variant="ghost"
             onClick={() => setShowComments(!showComments)}
             requireAuth
-            className="flex-1 text-text-secondary"
+            className="flex-1 text-text-secondary rounded-full"
             iconName="MessageCircle"
             iconPosition="left"
             iconSize={16}
@@ -286,7 +286,7 @@ const FeedPost = ({ post }) => {
           </Button>
           <Button
             variant="ghost"
-            className="flex-1 text-text-secondary"
+            className="flex-1 text-text-secondary rounded-full"
             iconName={isSaved ? 'BookmarkCheck' : 'Bookmark'}
             requireAuth
             onClick={handleSave}
@@ -303,7 +303,7 @@ const FeedPost = ({ post }) => {
       {/* Donate Modal (lightweight) */}
       {showDonate && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-card border border-border rounded-lg shadow-modal p-6 w-full max-w-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-modal p-6 w-full max-w-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-foreground">Support this {post.type}</h3>
               <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setShowDonate(false)}>
@@ -348,7 +348,7 @@ const FeedPost = ({ post }) => {
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 placeholder="Add a comment..."
-                className="w-full p-3 border border-border rounded-lg resize-none text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="w-full p-3 border border-border rounded-2xl resize-none text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                 rows={2}
               />
               <div className="flex justify-end mt-2">
@@ -358,6 +358,7 @@ const FeedPost = ({ post }) => {
                   onClick={handleComment}
                   requireAuth
                   disabled={!commentText.trim()}
+                  className="rounded-full"
                 >
                   Comment
                 </Button>

@@ -9,6 +9,7 @@ const FeedContainer = ({ newPost, refreshKey }) => {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [trending, setTrending] = useState([]);
   const [page, setPage] = useState(1);
 
   const filterOptions = [
@@ -45,6 +46,11 @@ const FeedContainer = ({ newPost, refreshKey }) => {
       if (filter === 'idea') mapped = mapped.filter(p => p.type === 'idea');
       if (filter === 'thought') mapped = mapped.filter(p => p.type === 'thought');
       setPosts(mapped);
+      // compute trending hashtags from current list
+      const counts = new Map();
+      mapped.forEach(p => (p.hashtags || []).forEach(tag => counts.set(tag, (counts.get(tag) || 0) + 1)));
+      const topTags = Array.from(counts.entries()).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([tag])=>tag);
+      setTrending(topTags);
       setHasMore(false); // until pagination endpoint defined
       setPage(1);
     } catch (e) {
@@ -87,8 +93,35 @@ const FeedContainer = ({ newPost, refreshKey }) => {
 
   return (
     <div className="space-y-6">
+      {/* Trending Tags Bar */}
+      <div className="bg-card border border-border rounded-2xl shadow-card p-2 sticky top-16 z-[10]">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <Button
+            variant={filter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => setFilter('all')}
+            iconName="Flame"
+            iconPosition="left"
+            iconSize={16}
+          >
+            Trending
+          </Button>
+          {trending.map(tag => (
+            <Button
+              key={tag}
+              variant={filter === `tag:${tag}` ? 'default' : 'outline'}
+              size="sm"
+              className="rounded-full"
+              onClick={() => setFilter(prev => prev === `tag:${tag}` ? 'all' : `tag:${tag}`)}
+            >
+              #{tag}
+            </Button>
+          ))}
+        </div>
+      </div>
       {/* Filter Bar */}
-      <div className="bg-card border border-border rounded-lg shadow-card p-2 flex flex-wrap gap-1">
+      <div className="bg-card border border-border rounded-2xl shadow-card p-2 flex flex-wrap gap-1">
         {filterOptions.map((opt) => (
           <Button
             key={opt.value}
@@ -98,6 +131,7 @@ const FeedContainer = ({ newPost, refreshKey }) => {
             iconName={opt.icon}
             iconPosition="left"
             iconSize={16}
+            className="rounded-full"
           >
             {opt.label}
           </Button>
@@ -138,6 +172,7 @@ const FeedContainer = ({ newPost, refreshKey }) => {
               iconName="ChevronDown"
               iconPosition="right"
               iconSize={16}
+              className="rounded-full"
             >
               Load more posts
             </Button>

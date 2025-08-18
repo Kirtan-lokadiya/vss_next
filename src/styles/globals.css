@@ -6,6 +6,8 @@
 
 @layer base {
   :root {
+    /* Global Radius */
+    --radius: 12px;
     /* Core Colors */
     --color-background: #FFFFFF; /* white */
     --color-foreground: #1D2129; /* gray-900 */
@@ -62,6 +64,7 @@
   }
   
   .dark {
+    --radius: 12px;
     --color-background: #18191A; /* dark gray */
     --color-foreground: #F3F4F6; /* light gray */
     --color-border: #23272F; /* darker border */
