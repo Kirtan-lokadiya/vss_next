@@ -5,6 +5,7 @@ import Image from '@/src/components/AppImage';
 import Button from '@/src/components/ui/Button';
 import { useAuth } from "../../../context/AuthContext";
 import { toggleLikePost, toggleSavePost, getAuthToken, fetchPostGraph } from '@/src/utils/api';
+import NetworkVisualization from '@/src/pages/connection-network-tree/components/NetworkVisualization';
 
 const FeedPost = ({ post }) => {
   const { isAuthenticated, openAuthModal } = useAuth();
@@ -423,7 +424,9 @@ const OpenGraphButton = ({ post }) => {
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
-  const [users, setUsers] = React.useState([]);
+  const [connections, setConnections] = React.useState([]);
+  const [viewMode, setViewMode] = React.useState('tree');
+  const [selectedNode, setSelectedNode] = React.useState(null);
 
   const openAndLoad = async () => {
     setOpen(true);
@@ -432,11 +435,27 @@ const OpenGraphButton = ({ post }) => {
     try {
       const token = getAuthToken();
       const data = await fetchPostGraph({ postId: post.id, token });
-      setUsers(Array.isArray(data?.users) ? data.users : []);
+      const users = Array.isArray(data?.users) ? data.users : [];
+      const mapped = users.map(u => ({
+        id: u.id,
+        name: u.name,
+        title: '',
+        company: '',
+        location: '',
+        industry: '',
+        connections: 0,
+        connectedDate: '',
+        interactions: 0,
+        avatar: u.picture && u.picture !== 'None' ? u.picture : undefined,
+        bio: '',
+        skills: [],
+        mutualConnections: [],
+      }));
+      setConnections(mapped);
     } catch (e) {
       console.error(e);
       setError(e?.message || 'Failed to load graph');
-      setUsers([]);
+      setConnections([]);
     } finally {
       setLoading(false);
     }
@@ -471,27 +490,20 @@ const OpenGraphButton = ({ post }) => {
               )}
               {!loading && !error && (
                 <>
-                  {users.length === 0 ? (
+                  {connections.length === 0 ? (
                     <div className="h-72 bg-muted rounded-lg flex items-center justify-center">
                       <span className="text-text-secondary text-sm">No users to display</span>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {users.map((u) => (
-                        <div key={u.id} className="flex items-center gap-3 border border-border rounded-lg p-3">
-                          <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center overflow-hidden">
-                            {u.picture && u.picture !== 'None' ? (
-                              <img src={u.picture} alt={u.name} className="w-10 h-10 object-cover" />
-                            ) : (
-                              <Icon name="User" size={16} />
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-sm font-medium text-foreground">{u.name}</div>
-                            <div className="text-xs text-text-secondary">ID: {u.id}</div>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="border border-border rounded-2xl overflow-hidden">
+                      <NetworkVisualization
+                        connections={connections}
+                        selectedNode={selectedNode}
+                        onNodeSelect={setSelectedNode}
+                        viewMode={viewMode}
+                        onViewModeChange={setViewMode}
+                        className="h-[480px]"
+                      />
                     </div>
                   )}
                 </>
