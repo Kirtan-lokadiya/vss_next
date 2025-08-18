@@ -9,6 +9,26 @@ import store from '../src/store'
 import '../src/styles/globals.css'
 import '../src/styles/index.css'
 import AuthModal from '@/src/components/ui/AuthModal'
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
+import { getAuthToken } from '@/src/utils/api'
+
+const PUBLIC_ROUTES = new Set(['/login', '/register', '/verify-email']);
+
+const RequireAuth = ({ children }) => {
+  const router = useRouter();
+  useEffect(() => {
+    const token = getAuthToken();
+    const path = router.pathname;
+    if (!token && !PUBLIC_ROUTES.has(path) && !path.startsWith('/verification')) {
+      router.replace('/login');
+    }
+    if (token && (path === '/login' || path === '/register')) {
+      router.replace('/');
+    }
+  }, [router.pathname]);
+  return children;
+};
 
 function MyApp({ Component, pageProps }) {
   return (
@@ -18,7 +38,9 @@ function MyApp({ Component, pageProps }) {
           <ToastProvider>
             <PasskeyProvider>
               <DndProvider backend={HTML5Backend}>
-                <Component {...pageProps} />
+                <RequireAuth>
+                  <Component {...pageProps} />
+                </RequireAuth>
                 <AuthModal />
               </DndProvider>
             </PasskeyProvider>

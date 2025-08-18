@@ -4,8 +4,9 @@ import { useRouter } from 'next/router';
 import Icon from '../AppIcon';
 import Button from './Button';
 import Input from './Input';
-import ThemeSwitcher from './ThemeSwitcher';
 import { useAuth } from '../../context/AuthContext';
+import { extractUserId } from '@/src/utils/jwt';
+import { fetchUserBasic, getAuthToken } from '@/src/utils/api';
 
 const Header = () => {
   const [showProfileMenu, setShowProfileMenu] = React.useState(false);
@@ -13,7 +14,9 @@ const Header = () => {
   const router = useRouter();
   const navigate = router.push;
   const profileRef = React.useRef(null);
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, openAuthModal } = useAuth();
+  const [userName, setUserName] = React.useState('');
+  const [loadingUser, setLoadingUser] = React.useState(false);
 
   React.useEffect(() => {
     const handleClickOutside = (e) => {
@@ -45,6 +48,28 @@ const Header = () => {
     e.preventDefault();
     navigate('/search');
   };
+
+  React.useEffect(() => {
+    const token = getAuthToken();
+    const uid = extractUserId(token);
+    if (!token || !uid) {
+      setUserName('');
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingUser(true);
+        const data = await fetchUserBasic({ userId: uid, token });
+        if (!cancelled) setUserName(data?.name || '');
+      } catch {
+        if (!cancelled) setUserName('');
+      } finally {
+        if (!cancelled) setLoadingUser(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-background border-b border-border z-1000">
@@ -80,13 +105,11 @@ const Header = () => {
           </form>
         </div>
 
-        {/* Right: Theme + Profile */}
+        {/* Right: Profile */}
         <div className="flex items-center space-x-2">
-          <ThemeSwitcher />
           {!isAuthenticated && (
             <>
-              <Link href="/login" className="hidden md:inline-block"><Button variant="ghost">Log In</Button></Link>
-              <Link href="/register" className="hidden md:inline-block"><Button variant="secondary">Sign Up</Button></Link>
+              <Button variant="secondary" onClick={openAuthModal}>Log In</Button>
             </>
           )}
           <div className="relative" ref={profileRef}>
@@ -106,8 +129,8 @@ const Header = () => {
                       <Icon name="User" size={24} color="white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-foreground">John Doe</h3>
-                      <p className="text-sm text-text-secondary">Product Manager</p>
+                      <h3 className="font-semibold text-foreground">{userName || 'User'}</h3>
+                      <p className="text-sm text-text-secondary">{loadingUser ? 'Loading...' : ''}</p>
                     </div>
                   </div>
                 </div>

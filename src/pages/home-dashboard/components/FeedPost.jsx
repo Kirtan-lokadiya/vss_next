@@ -5,10 +5,12 @@ import Image from '@/src/components/AppImage';
 import Button from '@/src/components/ui/Button';
 import { useAuth } from "../../../context/AuthContext";
 import { toggleLikePost, toggleSavePost, getAuthToken, fetchPostGraph } from '@/src/utils/api';
+import { useToast } from '@/src/context/ToastContext';
 import NetworkVisualization from '@/src/pages/connection-network-tree/components/NetworkVisualization';
 
 const FeedPost = ({ post }) => {
   const { isAuthenticated, openAuthModal } = useAuth();
+  const { showToast } = useToast();
   const [isLiked, setIsLiked] = useState(post.isLiked || false);
   const [isSaved, setIsSaved] = useState(post.isSaved || false);
   const [likeCount, setLikeCount] = useState(post.likes || 0);
@@ -38,7 +40,7 @@ const FeedPost = ({ post }) => {
       setIsLiked(!nextLiked);
       setLikeCount(prev => (!nextLiked ? prev + 1 : Math.max(0, prev - 1)));
       console.error(e);
-      alert(e.message || 'Failed to update like');
+      showToast(e.message || 'Failed to update like', 'error');
     } finally {
       setMutating(false);
     }
@@ -59,7 +61,7 @@ const FeedPost = ({ post }) => {
     } catch (e) {
       setIsSaved(!nextSaved);
       console.error(e);
-      alert(e.message || 'Failed to update save');
+      showToast(e.message || 'Failed to update save', 'error');
     } finally {
       setMutating(false);
     }

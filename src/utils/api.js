@@ -21,17 +21,30 @@ export const authHeaders = (token) => {
   return headers;
 };
 
+const getJsonSafe = async (res) => {
+  try { return await res.json(); } catch { return null; }
+};
+
+const ensureOk = (res, data) => {
+  // Treat 200 with { errors: { message } } as failure
+  const apiErrorMessage = data?.errors?.message || data?.message;
+  const hasErrors = !!data?.errors || (typeof data?.customCode === 'number' && data?.customCode !== 0);
+  if (!res.ok || hasErrors) {
+    const message = apiErrorMessage || 'Request failed';
+    const error = new Error(message);
+    error.api = data;
+    throw error;
+  }
+};
+
 export const createIdea = async ({ userId, idea, token }) => {
   const res = await fetch(`${ENDPOINTS.postBase}/idea`, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify({ userId, idea }),
   });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    const message = data?.message || 'Failed to create idea';
-    throw new Error(message);
-  }
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
   return data;
 };
 
@@ -39,11 +52,8 @@ export const fetchFeed = async ({ page = 1, token }) => {
   const res = await fetch(`${ENDPOINTS.feedBase}/?page=${encodeURIComponent(page)}`, {
     headers: authHeaders(token),
   });
-  const data = await res.json();
-  if (!res.ok) {
-    const message = data?.message || 'Failed to load feed';
-    throw new Error(message);
-  }
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
   return data;
 };
 
@@ -51,8 +61,8 @@ export const fetchUserLiked = async ({ token }) => {
   const res = await fetch(`${ENDPOINTS.postBase}/user/liked`, {
     headers: authHeaders(token),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.message || 'Failed to load liked posts');
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
   return data;
 };
 
@@ -60,8 +70,8 @@ export const fetchUserSaved = async ({ token }) => {
   const res = await fetch(`${ENDPOINTS.postBase}/user/saved`, {
     headers: authHeaders(token),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.message || 'Failed to load saved posts');
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
   return data;
 };
 
@@ -70,11 +80,8 @@ export const toggleLikePost = async ({ postId, token }) => {
     method: 'POST',
     headers: authHeaders(token),
   });
-  if (!res.ok) {
-    let data = null;
-    try { data = await res.json(); } catch {}
-    throw new Error(data?.message || 'Failed to like post');
-  }
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
   return true;
 };
 
@@ -83,11 +90,8 @@ export const toggleSavePost = async ({ postId, token }) => {
     method: 'POST',
     headers: authHeaders(token),
   });
-  if (!res.ok) {
-    let data = null;
-    try { data = await res.json(); } catch {}
-    throw new Error(data?.message || 'Failed to save post');
-  }
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
   return true;
 };
 
@@ -140,11 +144,8 @@ export const fetchUserBasic = async ({ userId, token }) => {
   const res = await fetch(`${ENDPOINTS.userBase}/${encodeURIComponent(userId)}`, {
     headers: authHeaders(token),
   });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    const message = data?.message || 'Failed to load user';
-    throw new Error(message);
-  }
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
   return data;
 };
 
@@ -153,11 +154,8 @@ export const fetchPostGraph = async ({ postId, token }) => {
   const res = await fetch(`${ENDPOINTS.postBase}/graph/${encodeURIComponent(postId)}`, {
     headers: authHeaders(token),
   });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    const message = data?.message || 'Failed to load graph';
-    throw new Error(message);
-  }
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
   return data; // expected shape: { users: [{ id, name, picture }] }
 };
 
@@ -165,11 +163,8 @@ export const fetchUserProfile = async ({ userId, token }) => {
   const res = await fetch(`${ENDPOINTS.userBase}/profile/${encodeURIComponent(userId)}`, {
     headers: authHeaders(token),
   });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    const message = data?.message || 'Failed to load profile';
-    throw new Error(message);
-  }
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
   return data;
 };
 
@@ -179,10 +174,7 @@ export const updateUserProfile = async ({ profile, token }) => {
     headers: authHeaders(token),
     body: JSON.stringify(profile),
   });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    const message = data?.message || 'Failed to update profile';
-    throw new Error(message);
-  }
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
   return data;
 };
