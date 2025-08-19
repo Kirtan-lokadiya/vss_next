@@ -3,14 +3,12 @@ import PasswordModal from '@/src/components/ui/PasswordModal';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import Header from '@/src/components/ui/Header';
-import NavigationBreadcrumb from '@/src/components/ui/NavigationBreadcrumb';
 import WhiteboardCanvas from './components/WhiteboardCanvas';
-import NoteDetailsPanel from './components/NoteDetailsPanel';
 import ToolbarTop from '@/src/pages/ideas-whiteboard/components/ToolbarTop';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
 import { useAuth } from '@/src/context/AuthContext';
-import { getNotes, createNote, updateNote } from '@/src/utils/notesApi';
+import { getNotes, createNote, updateNote, updateNoteContent } from '@/src/utils/notesApi';
 
 const IdeasWhiteboard = () => {
   const [notes, setNotes] = useState([]);
@@ -127,15 +125,21 @@ const IdeasWhiteboard = () => {
     const res = await getNotes(token, 1, 5, enteredPassword);
 
     if (!res.success) {
-      // Check if it's a password error
-      if (res.api?.customCode === 1001 || res.customCode === 1001) {
-        setPasswordError("Wrong password! Please try again.");
-        setPasswordModalOpen(true);   // keep modal open
+      // Wrong password (401 Unauth) from backend
+      if (res.status === 401 || (res.api && res.api.status === 401)) {
+        setPasswordError('Wrong password! Please try again.');
+        setPasswordModalOpen(true);
         setNotes([]);
-        return; // Don't proceed further
+        return;
+      }
+      if (res.api?.customCode === 1001 || res.customCode === 1001) {
+        setPasswordError('Wrong password! Please try again.');
+        setPasswordModalOpen(true);
+        setNotes([]);
+        return;
       } else {
         console.error('Error loading notes:', res.error);
-        setPasswordError("Failed to load notes. Please try again.");
+        setPasswordError('Failed to load notes. Please try again.');
         setPasswordModalOpen(true);
         return;
       }
@@ -190,60 +194,52 @@ const IdeasWhiteboard = () => {
 
   const handleCreateNote = useCallback(async (noteData = {}) => {
     if (!token || !userPassword) return;
-    // First, ensure current notes are shown (GET before POST as requested)
-    await loadNotes();
 
-    // Create note with default properties
-    const payload = {
+    // Compute next position
+    const baseX = 100, baseY = 100, step = 48, perRow = 6;
+    const idx = notes.length;
+    const nextPos = { x: baseX + (idx % perRow) * step, y: baseY + Math.floor(idx / perRow) * step };
+
+    // Optimistic insert
+    const tempId = `temp-${Date.now()}`;
+    const optimistic = {
+      id: tempId,
+      title: `Note #${tempId}`,
       content: noteData.content || 'New note',
-      properties: { x: 100, y: 100, z: 5, color: '#ffffff', height: 100, width: 200 },
+      color: 'yellow',
+      createdAt: new Date().toISOString(),
+      position: nextPos,
+      zIndex: 1,
+      comments: [],
+      raw: {},
+    };
+    setNotes(prev => [...prev, optimistic]);
+    setFilteredNotes(prev => [...prev, optimistic]);
+    setSelectedNoteId(null);
+    setShowDetailsPanel(false);
+
+    // POST to create on server
+    const payload = {
+      content: optimistic.content,
+      properties: { x: nextPos.x, y: nextPos.y, z: 5, color: '#ffffff', height: 100, width: 200 },
     };
     const created = await createNote(token, payload);
-
-    // If created successfully, immediately update its position so server saves distinct coords
     if (created?.success && created.note) {
       const newId = created.note.noteId || created.note.id;
-      const nextPos = computeNextPosition();
-      await updateNote(token, newId, {
-        x: nextPos.x,
-        y: nextPos.y,
-        z: 5,
-        color: '#ffffff',
-        height: 100,
-        width: 200,
-      });
+      // Replace temp note with server one
+      setNotes(prev => prev.map(n => n.id === tempId ? { ...n, id: newId, title: `Note #${newId}`, raw: created.note } : n));
+      setFilteredNotes(prev => prev.map(n => n.id === tempId ? { ...n, id: newId, title: `Note #${newId}`, raw: created.note } : n));
+    } else {
+      // On failure, remove optimistic note
+      setNotes(prev => prev.filter(n => n.id !== tempId));
+      setFilteredNotes(prev => prev.filter(n => n.id !== tempId));
     }
+  }, [token, userPassword, notes.length]);
 
-    // Refresh notes after creation and positioning
-    await loadNotes();
-  }, [token, userPassword, loadNotes, computeNextPosition]);
-
+  // Do not PUT on drag anymore; only update UI state
   const handleMoveNote = useCallback(async (noteId, newPosition) => {
-    // Update UI immediately
     setNotes(prev => prev.map(note => (note.id === noteId ? { ...note, position: newPosition } : note)));
-
-    // Debounce server update per noteId
-    const timers = saveTimersRef.current;
-    if (timers.has(noteId)) {
-      clearTimeout(timers.get(noteId));
-    }
-    const timerId = setTimeout(async () => {
-      // Build full properties payload using existing note details
-      const current = notes.find(n => n.id === noteId);
-      const existing = current?.raw?.properties || {};
-      const payload = {
-        x: newPosition.x,
-        y: newPosition.y,
-        z: existing.z ?? current?.zIndex ?? 1,
-        color: existing.color ?? current?.color ?? '#ffffff',
-        height: existing.height ?? current?.size?.height ?? 100,
-        width: existing.width ?? current?.size?.width ?? 200,
-      };
-      await updateNote(token, noteId, payload);
-      timers.delete(noteId);
-    }, 350);
-    timers.set(noteId, timerId);
-  }, [notes, token]);
+  }, []);
 
   const handleSelectNote = useCallback((noteId) => {
     setSelectedNoteId(noteId);
@@ -259,6 +255,30 @@ const IdeasWhiteboard = () => {
     setShowDetailsPanel(false);
   }, []);
 
+  const handleUpdateNote = useCallback((noteId, updates) => {
+    setNotes(prev => prev.map(note => note.id === noteId ? { ...note, ...updates } : note));
+  }, []);
+
+  // Save edited content to backend when StickyNote triggers save
+  const handleSaveNoteContent = useCallback(async (noteId, updates) => {
+    const tokenToUse = token;
+    await updateNoteContent(tokenToUse, noteId, { title: updates.title, content: updates.content });
+    // Reflect saved values in state
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, title: updates.title, content: updates.content } : n));
+    setFilteredNotes(prev => prev.map(n => n.id === noteId ? { ...n, title: updates.title, content: updates.content } : n));
+  }, [token]);
+
+  const handleDeleteNote = useCallback(async (noteId) => {
+    if (!token) return;
+    const res = await updateNote(token, noteId, { isDeleted: true });
+    if (res.success) {
+      setNotes(prev => prev.filter(n => n.id !== noteId));
+      setFilteredNotes(prev => prev.filter(n => n.id !== noteId));
+    } else {
+      console.error('Error deleting note:', res.error);
+    }
+  }, [token]);
+
   const selectedNote = notes.find(note => note.id === selectedNoteId);
 
   return (
@@ -267,8 +287,6 @@ const IdeasWhiteboard = () => {
         {/* Top navbar only */}
         <Header />
         <div className="pt-16">
-          {/* Removed breadcrumb bar */}
-
           {/* Main Content - no left/right panels */}
           <div className="h-[calc(100vh-8rem)] flex flex-col">
             {/* Top Bar with only search */}
@@ -294,16 +312,11 @@ const IdeasWhiteboard = () => {
               <WhiteboardCanvas
                 notes={filteredNotes}
                 connections={connections}
-                onUpdateNote={(id, updates) => {
-                  // Optional hook if canvas calls updates besides drag
-                  if (updates?.position) {
-                    handleMoveNote(id, updates.position);
-                  }
-                }}
-                onDeleteNote={() => {}}
+                onUpdateNote={handleSaveNoteContent}
+                onDeleteNote={handleDeleteNote}
                 onMoveNote={handleMoveNote}
-                selectedNoteId={selectedNoteId}
-                onSelectNote={handleSelectNote}
+                selectedNoteId={null}
+                onSelectNote={() => {}}
                 onConnectNotes={() => {}}
                 scale={scale}
                 viewMode={'grid'}
@@ -327,20 +340,6 @@ const IdeasWhiteboard = () => {
               />
             </div>
           </div>
-
-          {/* Right Details Panel remains if a note is selected */}
-          {showDetailsPanel && selectedNote && (
-            <NoteDetailsPanel
-              note={selectedNote}
-              onUpdateNote={() => {}}
-              onDeleteNote={() => {}}
-              onClose={() => { setShowDetailsPanel(false); setSelectedNoteId(null); }}
-              connections={connections}
-              allNotes={notes}
-              onCreateConnection={() => {}}
-              onDeleteConnection={() => {}}
-            />
-          )}
         </div>
       </div>
     </DndProvider>

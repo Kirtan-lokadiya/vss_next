@@ -26,24 +26,24 @@ export async function getNotes(token, page = 1, size = 10, password = '') {
       },
     });
     const data = await res.json();
-    
+
+    // Explicitly surface Unauthorized (wrong or missing password)
+    if (!res.ok) {
+      const message = data?.message || 'Failed to load notes';
+      return { success: false, error: message, status: res.status, api: data };
+    }
+
     // Handle "Page is empty" as success (user has no notes yet)
     if (data?.errors?.message === 'Page is empty' && data?.customCode === 404) {
-      return {
-        success: true,
-        data: [], // Empty notes list
-      };
+      return { success: true, data: [] };
     }
-    
+
     // Treat other 200 with errors as failure (backend convention)
     if (data?.errors) {
       return { success: false, error: data.errors.message || 'Failed to load notes', api: data };
     }
-    
-    return {
-      success: true,
-      data: data.notes || [],
-    };
+
+    return { success: true, data: data.notes || [] };
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -116,6 +116,32 @@ export const createNote = async (token, noteData) => {
 };
 
 /**
+ * Update note content (title/content)
+ */
+export const updateNoteContent = async (token, noteId, { title, content }) => {
+  try {
+    const effectiveToken = token || getStoredToken();
+    const response = await fetch(`${NOTES_BASE}/content/${noteId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${effectiveToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ noteId, title, content }),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      const msg = data?.message || 'Failed to update note content';
+      throw new Error(msg);
+    }
+    return { success: true, note: data };
+  } catch (error) {
+    console.error('Error updating note content:', error);
+    return { success: false, message: error.message };
+  }
+};
+
+/**
  * Update an existing note
  * @param {string} token - Authorization token (optional, will fallback to localStorage)
  * @param {string} noteId - Note ID to update
@@ -131,7 +157,7 @@ export const updateNote = async (token, noteId, updateData) => {
         'Authorization': `Bearer ${effectiveToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(updateData),
+      body: JSON.stringify({ noteId, ...updateData }),
     });
 
     if (!response.ok) {
@@ -140,7 +166,6 @@ export const updateNote = async (token, noteId, updateData) => {
       try {
         const errJson = await response.json();
         if (errJson?.message) message = errJson.message;
-        // Surface unauthorized clearly
         if (response.status === 401) message = 'Unauthorized (missing or invalid token)';
       } catch {
         const errText = await response.text().catch(() => '');
