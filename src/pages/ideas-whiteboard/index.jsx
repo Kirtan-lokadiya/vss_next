@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PasswordModal from '@/src/components/ui/PasswordModal';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -10,8 +10,7 @@ import ToolbarTop from '@/src/pages/ideas-whiteboard/components/ToolbarTop';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
 import { useAuth } from '@/src/context/AuthContext';
-import { getNotes, createEncryptedNote, updateNote } from '@/src/utils/notesApi';
-import { decryptNoteContent } from '@/src/utils/notesApi';
+import { getNotes, createNote, updateNote } from '@/src/utils/notesApi';
 
 const IdeasWhiteboard = () => {
   const [notes, setNotes] = useState([]);
@@ -21,15 +20,17 @@ const IdeasWhiteboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredNotes, setFilteredNotes] = useState([]);
   const [showDetailsPanel, setShowDetailsPanel] = useState(false);
-  const [connectingMode, setConnectingMode] = useState(false);
-  const [connectingFromId, setConnectingFromId] = useState(null);
+  const [passwordError, setPasswordError] = useState('');
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [passwordIsSet, setPasswordIsSet] = useState(false);
   const [pendingNoteData, setPendingNoteData] = useState(null);
   const [userPassword, setUserPassword] = useState('');
   const { token } = useAuth();
 
-  // Prompt for password on mount if passkey exists (or to set one if missing)
+  // Debounce timers per noteId for saving
+  const saveTimersRef = useRef(new Map());
+
+  // Prompt when visiting ideas page; check server for passkey and open modal
   useEffect(() => {
     if (!token) return;
     (async () => {
@@ -43,41 +44,54 @@ const IdeasWhiteboard = () => {
         });
         const data = await res.json();
         if (data?.errors && data.errors.message === 'Security Key Not Found') {
-          setPasswordIsSet(false);
+          setPasswordIsSet(false); // show Set Password
+        } else if (data?.id && data?.publicKey) {
+          setPasswordIsSet(true); // show Unlock password prompt
         } else {
           setPasswordIsSet(true);
         }
         setPasswordModalOpen(true);
       } catch {
-        // If check fails, still prompt for password
         setPasswordIsSet(true);
         setPasswordModalOpen(true);
       }
     })();
   }, [token]);
 
-  // Load notes from backend and (if unlocked) decrypt content
+  // Load notes from backend after unlock
   const loadNotes = useCallback(async () => {
     if (!token) return;
-    const res = await getNotes(token, 1, 5, userPassword);
-    console.log('Loaded notes:', res);
-    if (!res.success) return;
-    let list = res.data || [];
-    // Map backend model to whiteboard note model
+    // Don't call API without password - this prevents incomplete requests
+    if (!userPassword) return;
 
+    const res = await getNotes(token, 1, 5, userPassword);
+    if (!res.success) {
+      console.error('Error loading notes:', res.error);
+      // Check if it's a password error
+      if (res.api?.customCode === 1001 || res.customCode === 1001) {
+        setPasswordError("Wrong password! Please try again.");
+        setPasswordModalOpen(true);   // keep modal open
+        setNotes([]);
+      }
+      return;
+    }
+
+    // ✅ Clear error if successful (including empty page)
+    setPasswordError('');
+
+    // Normal success (including empty notes list)
+    const list = res.data || [];
     const mapped = await Promise.all(list.map(async (n) => {
       const properties = n.properties || {};
-      let contentText = n.content;
       return {
         id: n.noteId || n.id,
         title: `Note #${n.noteId || n.id}`,
-        content: contentText,
-        color: properties.color || 'yellow',
-        category: '',
-        author: '',
+        content: n.content,
+        color: properties.color || '#ffffff',
         createdAt: new Date().toISOString(),
-        position: { x: properties.x || 100, y: properties.y || 100 },
-        zIndex: properties.z || 1,
+        position: { x: properties.x ?? 100, y: properties.y ?? 100 },
+        zIndex: properties.z ?? 1,
+        size: { width: properties.width ?? 200, height: properties.height ?? 100 },
         comments: [],
         raw: n,
       };
@@ -86,7 +100,12 @@ const IdeasWhiteboard = () => {
     setFilteredNotes(mapped);
   }, [token, userPassword]);
 
-  useEffect(() => { loadNotes(); }, [loadNotes]);
+  // Only load notes when we have a password
+  useEffect(() => {
+    if (userPassword) {
+      loadNotes();
+    }
+  }, [loadNotes]);
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -100,79 +119,131 @@ const IdeasWhiteboard = () => {
     }
   }, [notes, searchQuery]);
 
-  // No localStorage persistence — notes come from backend only
-
-  const handleCreateNote = useCallback(async (noteData = {}) => {
-    // Always check passkey; if set, ask for password (to decrypt after fetch)
-    try {
-      const res = await fetch(`/api/security/passkeys-user`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      const data = await res.json();
-      if (data?.errors && data.errors.message === 'Security Key Not Found') {
-        setPasswordIsSet(false);
-      } else {
-        setPasswordIsSet(true);
-      }
-      setPendingNoteData(noteData);
-      setPasswordModalOpen(true);
-    } catch (err) {
-      setPasswordIsSet(false);
-      setPendingNoteData(noteData);
-      setPasswordModalOpen(true);
-    }
-  }, [token]);
-
   // Called after password modal success
   const handlePasswordSuccess = useCallback(async (enteredPassword) => {
     setUserPassword(enteredPassword || userPassword);
-    // First load and decrypt notes for this user
-    await loadNotes();
+
+    // Try to load notes with the password
+    const res = await getNotes(token, 1, 5, enteredPassword);
+
+    if (!res.success) {
+      // Check if it's a password error
+      if (res.api?.customCode === 1001 || res.customCode === 1001) {
+        setPasswordError("Wrong password! Please try again.");
+        setPasswordModalOpen(true);   // keep modal open
+        setNotes([]);
+        return; // Don't proceed further
+      } else {
+        console.error('Error loading notes:', res.error);
+        setPasswordError("Failed to load notes. Please try again.");
+        setPasswordModalOpen(true);
+        return;
+      }
+    }
+
+    // ✅ Success - clear error and close modal
+    setPasswordError('');
+    setPasswordModalOpen(false);
+
+    // Load notes successfully (including empty list)
+    const list = res.data || [];
+    const mapped = await Promise.all(list.map(async (n) => {
+      const properties = n.properties || {};
+      return {
+        id: n.noteId || n.id,
+        title: `Note #${n.noteId || n.id}`,
+        content: n.content,
+        color: properties.color || '#ffffff',
+        createdAt: new Date().toISOString(),
+        position: { x: properties.x ?? 100, y: properties.y ?? 100 },
+        zIndex: properties.z ?? 1,
+        size: { width: properties.width ?? 200, height: properties.height ?? 100 },
+        comments: [],
+        raw: n,
+      };
+    }));
+    setNotes(mapped);
+    setFilteredNotes(mapped);
+
     // If creation was requested, create a blank note via API, then reload
     if (pendingNoteData) {
+      const baseX = 100, baseY = 100, delta = 24;
+      const idx = mapped.length;
       const payload = {
         content: pendingNoteData.content || 'New note',
-        properties: {
-          x: 100,
-          y: 100,
-          z: 5,
-          color: '#ffffff',
-          height: 100,
-          width: 200,
-        },
+        properties: { x: baseX + (idx % 5) * delta, y: baseY + (idx % 5) * delta, z: 5, color: '#ffffff', height: 100, width: 200 },
       };
-      await createEncryptedNote(token, payload);
+      await createNote(token, payload);
       await loadNotes();
+      setPendingNoteData(null);
     }
-    setPasswordModalOpen(false);
-    setPendingNoteData(null);
-  }, [pendingNoteData, token, loadNotes, userPassword]);
-  const handleUpdateNote = useCallback((noteId, updates) => {
-    setNotes(prev => prev.map(note => 
-      note.id === noteId ? { ...note, ...updates } : note
-    ));
-  }, []);
+  }, [pendingNoteData, token, userPassword, loadNotes]);
 
-  const handleDeleteNote = useCallback((noteId) => {
-    setNotes(prev => prev.filter(note => note.id !== noteId));
-    setConnections(prev => prev.filter(conn => 
-      conn.from !== noteId && conn.to !== noteId
-    ));
-    if (selectedNoteId === noteId) {
-      setSelectedNoteId(null);
-      setShowDetailsPanel(false);
+  // Helper: compute next position in a simple grid to avoid overlap
+  const computeNextPosition = useCallback(() => {
+    const baseX = 100, baseY = 100, step = 48, perRow = 6;
+    const idx = notes.length;
+    const col = idx % perRow;
+    const row = Math.floor(idx / perRow);
+    return { x: baseX + col * step, y: baseY + row * step };
+  }, [notes.length]);
+
+  const handleCreateNote = useCallback(async (noteData = {}) => {
+    if (!token || !userPassword) return;
+    // First, ensure current notes are shown (GET before POST as requested)
+    await loadNotes();
+
+    // Create note with default properties
+    const payload = {
+      content: noteData.content || 'New note',
+      properties: { x: 100, y: 100, z: 5, color: '#ffffff', height: 100, width: 200 },
+    };
+    const created = await createNote(token, payload);
+
+    // If created successfully, immediately update its position so server saves distinct coords
+    if (created?.success && created.note) {
+      const newId = created.note.noteId || created.note.id;
+      const nextPos = computeNextPosition();
+      await updateNote(token, newId, {
+        x: nextPos.x,
+        y: nextPos.y,
+        z: 5,
+        color: '#ffffff',
+        height: 100,
+        width: 200,
+      });
     }
-  }, [selectedNoteId]);
+
+    // Refresh notes after creation and positioning
+    await loadNotes();
+  }, [token, userPassword, loadNotes, computeNextPosition]);
 
   const handleMoveNote = useCallback(async (noteId, newPosition) => {
+    // Update UI immediately
     setNotes(prev => prev.map(note => (note.id === noteId ? { ...note, position: newPosition } : note)));
-    // Push to backend
-    await updateNote(token, noteId, { x: newPosition.x, y: newPosition.y });
-  }, [token]);
+
+    // Debounce server update per noteId
+    const timers = saveTimersRef.current;
+    if (timers.has(noteId)) {
+      clearTimeout(timers.get(noteId));
+    }
+    const timerId = setTimeout(async () => {
+      // Build full properties payload using existing note details
+      const current = notes.find(n => n.id === noteId);
+      const existing = current?.raw?.properties || {};
+      const payload = {
+        x: newPosition.x,
+        y: newPosition.y,
+        z: existing.z ?? current?.zIndex ?? 1,
+        color: existing.color ?? current?.color ?? '#ffffff',
+        height: existing.height ?? current?.size?.height ?? 100,
+        width: existing.width ?? current?.size?.width ?? 200,
+      };
+      await updateNote(token, noteId, payload);
+      timers.delete(noteId);
+    }, 350);
+    timers.set(noteId, timerId);
+  }, [notes, token]);
 
   const handleSelectNote = useCallback((noteId) => {
     setSelectedNoteId(noteId);
@@ -225,8 +296,13 @@ const IdeasWhiteboard = () => {
               <WhiteboardCanvas
                 notes={filteredNotes}
                 connections={connections}
-                onUpdateNote={handleUpdateNote}
-                onDeleteNote={handleDeleteNote}
+                onUpdateNote={(id, updates) => {
+                  // Optional hook if canvas calls updates besides drag
+                  if (updates?.position) {
+                    handleMoveNote(id, updates.position);
+                  }
+                }}
+                onDeleteNote={() => {}}
                 onMoveNote={handleMoveNote}
                 selectedNoteId={selectedNoteId}
                 onSelectNote={handleSelectNote}
@@ -249,6 +325,7 @@ const IdeasWhiteboard = () => {
                 onClose={() => setPasswordModalOpen(false)}
                 onSuccess={handlePasswordSuccess}
                 isSet={passwordIsSet}
+                error={passwordError}
               />
             </div>
           </div>
@@ -257,8 +334,8 @@ const IdeasWhiteboard = () => {
           {showDetailsPanel && selectedNote && (
             <NoteDetailsPanel
               note={selectedNote}
-              onUpdateNote={handleUpdateNote}
-              onDeleteNote={handleDeleteNote}
+              onUpdateNote={() => {}}
+              onDeleteNote={() => {}}
               onClose={() => { setShowDetailsPanel(false); setSelectedNoteId(null); }}
               connections={connections}
               allNotes={notes}

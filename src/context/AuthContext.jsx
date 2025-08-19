@@ -51,13 +51,8 @@ export const AuthProvider = ({ children }) => {
     if (responseToken) {
       persistToken(responseToken);
       setAuthModalOpen(false);
-      // If passkey was set previously, redirect to a password prompt route to unlock notes
-      try {
-        const hasPasskey = typeof window !== 'undefined' && !!localStorage.getItem('passkey');
-        router.push(hasPasskey ? '/set-password' : '/');
-      } catch {
-        router.push('/');
-      }
+      // Always land on home after auth; passkey prompts are handled in specific pages
+      router.push('/');
     }
   }, [persistToken, router]);
 

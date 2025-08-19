@@ -1,31 +1,33 @@
 import React, { useState } from 'react';
 import { usePasskey } from '../../context/PasskeyContext';
 
-const PasswordModal = ({ open, onClose, onSuccess, isSet }) => {
+const PasswordModal = ({ open, onClose, onSuccess, isSet, error }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const { setPassword: createPasskey, checkPasskey } = usePasskey();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
     try {
       if (!isSet) {
         const result = await createPasskey(password);
         if (!result.success) throw new Error(result.message || 'Failed to set password');
+        // Set password success - close modal and call success
+        const pwd = password;
+        setPassword('');
+        onSuccess?.(pwd);
+        onClose();
       } else {
-        const result = await checkPasskey();
-        if (!result.success) throw new Error(result.message || 'Failed to fetch passkey');
-        if (result.isSet === false) throw new Error('Passkey not set');
+        // For unlock - just pass password to parent, let parent handle validation
+        const pwd = password;
+        setPassword('');
+        onSuccess?.(pwd);
+        // Don't close modal - parent will close it only on success
       }
-      const pwd = password;
-      setPassword('');
-      onSuccess?.(pwd);
-      onClose();
     } catch (err) {
-      setError(err.message);
+      // Only show local errors (like network issues)
+      console.error('Password modal error:', err);
     } finally {
       setLoading(false);
     }
@@ -35,8 +37,8 @@ const PasswordModal = ({ open, onClose, onSuccess, isSet }) => {
 
   return (
     <div className="fixed inset-0 z-[1030] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <form onSubmit={handleSubmit} className="bg-card p-8 rounded-lg shadow-modal w-full max-w-md space-y-6 relative">
-        <button type="button" onClick={onClose} className="absolute top-2 right-2 text-xl">×</button>
+      <form onSubmit={handleSubmit} className="bg-card p-8 rounded-2xl shadow-modal w-full max-w-md space-y-6 relative">
+        {/* Close removed as requested */}
         <h2 className="text-xl font-bold mb-2 text-foreground">{isSet ? 'Enter Your Password' : 'Set Your Password'}</h2>
         <p className="text-foreground mb-4">{isSet ? 'Please enter your password to unlock note creation.' : 'Create a password before creating notes.'}</p>
         <input
