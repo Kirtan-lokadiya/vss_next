@@ -264,12 +264,10 @@ const IdeasWhiteboard = () => {
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="min-h-screen bg-background">
-        {/* Only one header and breadcrumb, not duplicated */}
+        {/* Top navbar only */}
         <Header />
         <div className="pt-16">
-          <div className="px-6 py-4 border-b border-border">
-            <NavigationBreadcrumb />
-          </div>
+          {/* Removed breadcrumb bar */}
 
           {/* Main Content - no left/right panels */}
           <div className="h-[calc(100vh-8rem)] flex flex-col">

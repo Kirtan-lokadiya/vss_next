@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import Header from '@/src/components/ui/Header';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
@@ -6,6 +6,8 @@ import { useAuth } from '@/src/context/AuthContext';
 import { useToast } from '@/src/context/ToastContext';
 import { extractUserId } from '@/src/utils/jwt';
 import { fetchUserBasic, fetchUserProfile, updateUserProfile } from '@/src/utils/api';
+
+const USER_BASIC_CACHE_KEY = 'user_basic_v1';
 
 const emptyProfile = {
   gender: '',
@@ -31,26 +33,48 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState(emptyProfile);
 
+  // Guard to avoid duplicate fetches under StrictMode
+  const lastFetchKeyRef = useRef(null);
+
   useEffect(() => {
-    let isCancelled = false;
+    const key = `${userId}|${!!token}`;
+    if (!token || !userId) {
+      setLoading(false);
+      return;
+    }
+    if (lastFetchKeyRef.current === key) {
+      return; // already fetched for this key
+    }
+    lastFetchKeyRef.current = key;
+
     const load = async () => {
-      if (!token || !userId) {
-        setLoading(false);
-        return;
-      }
       setLoading(true);
       setError(null);
       try {
+        // Try basic from session cache first
+        try {
+          const cached = typeof window !== 'undefined' ? sessionStorage.getItem(USER_BASIC_CACHE_KEY) : null;
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (parsed && parsed.userId === userId && parsed.name) {
+              setUserBasic(prev => ({ ...prev, name: parsed.name }));
+            }
+          }
+        } catch {}
+
         const [basic, prof] = await Promise.all([
           fetchUserBasic({ userId, token }),
           fetchUserProfile({ userId, token })
         ]);
-        if (isCancelled) return;
+
         setUserBasic({
           name: basic?.name || '',
           email: basic?.email || '',
           picture: basic?.picture && basic.picture !== 'None' ? basic.picture : null,
         });
+        try {
+          sessionStorage.setItem(USER_BASIC_CACHE_KEY, JSON.stringify({ userId, name: basic?.name || '' }));
+        } catch {}
         const normalized = {
           gender: prof?.gender || '',
           birthday: prof?.birthday || '',
@@ -66,11 +90,11 @@ const Profile = () => {
         console.error(err);
         setError(err?.message || 'Failed to load profile');
       } finally {
-        if (!isCancelled) setLoading(false);
+        setLoading(false);
       }
     };
+
     load();
-    return () => { isCancelled = true; };
   }, [token, userId]);
 
   const handleSave = async () => {
@@ -169,59 +193,35 @@ const Profile = () => {
           <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="border border-border rounded-lg p-4 bg-background">
               <label className="block text-sm font-medium mb-1">Gender</label>
-              {isEditing ? (
-                <select
-                  value={editData.gender || ''}
-                  onChange={e => setEditData({ ...editData, gender: e.target.value })}
-                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground dark:bg-background dark:text-foreground"
-                >
-                  <option value="">Select</option>
-                  <option value="MALE">MALE</option>
-                  <option value="FEMALE">FEMALE</option>
-                  <option value="OTHER">OTHER</option>
-                </select>
-              ) : (
-                <p className="text-text-secondary">{profile.gender || '-'}</p>
-              )}
+              <p className="text-text-secondary">{profile.gender || '-'}</p>
             </div>
             <div className="border border-border rounded-lg p-4 bg-background">
               <label className="block text-sm font-medium mb-1">Birthday</label>
-              {isEditing ? (
-                <input
-                  type="date"
-                  value={editData.birthday || ''}
-                  onChange={e => setEditData({ ...editData, birthday: e.target.value })}
-                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground dark:bg-background dark:text-foreground"
-                />
-              ) : (
-                <p className="text-text-secondary">{profile.birthday || '-'}</p>
-              )}
+              <p className="text-text-secondary">{profile.birthday || '-'}</p>
             </div>
           </div>
 
           <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="border border-border rounded-lg p-4 bg-background">
-              <label className="block text-sm font-medium mb-1">Location</label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={editData.location || ''}
-                  onChange={e => setEditData({ ...editData, location: e.target.value })}
-                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground dark:bg-background dark:text-foreground"
-                />
-              ) : (
-                <p className="text-text-secondary">{profile.location || '-'}</p>
-              )}
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium">Location</label>
+              </div>
+              <p className="text-text-secondary">{profile.location || '-'}</p>
             </div>
             <div className="border border-border rounded-lg p-4 bg-background">
-              <label className="block text-sm font-medium mb-1">LinkedIn</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium">LinkedIn</label>
+                {!isEditing && !profile.linkedin && (
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>Add</Button>
+                )}
+              </div>
               {isEditing ? (
                 <input
                   type="url"
                   value={editData.linkedin || ''}
                   onChange={e => setEditData({ ...editData, linkedin: e.target.value })}
                   placeholder="https://www.linkedin.com/in/username"
-                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground dark:bg-background dark:text-foreground"
+                  className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground"
                 />
               ) : (
                 profile.linkedin ? (
@@ -234,14 +234,19 @@ const Profile = () => {
           </div>
 
           <div className="mb-6 border border-border rounded-lg p-4 bg-background">
-            <label className="block text-sm font-medium mb-1">Twitter</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium">Twitter</label>
+              {!isEditing && !profile.twitter && (
+                <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>Add</Button>
+              )}
+            </div>
             {isEditing ? (
               <input
                 type="url"
                 value={editData.twitter || ''}
                 onChange={e => setEditData({ ...editData, twitter: e.target.value })}
                 placeholder="https://twitter.com/username"
-                className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground dark:bg-background dark:text-foreground"
+                className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground"
               />
             ) : (
               profile.twitter ? (
@@ -266,39 +271,11 @@ const Profile = () => {
                   <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {isEditing ? (
                       <>
-                        <input
-                          type="text"
-                          value={edu.place || ''}
-                          onChange={e => updateEducationItem(idx, 'place', e.target.value)}
-                          placeholder="Place"
-                          className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground"
-                        />
-                        <input
-                          type="text"
-                          value={edu.degree || ''}
-                          onChange={e => updateEducationItem(idx, 'degree', e.target.value)}
-                          placeholder="Degree"
-                          className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground"
-                        />
-                        <input
-                          type="date"
-                          value={edu.startingDate || ''}
-                          onChange={e => updateEducationItem(idx, 'startingDate', e.target.value)}
-                          className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground"
-                        />
-                        <input
-                          type="date"
-                          value={edu.endingDate || ''}
-                          onChange={e => updateEducationItem(idx, 'endingDate', e.target.value)}
-                          className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground"
-                        />
-                        <input
-                          type="text"
-                          value={edu.info || ''}
-                          onChange={e => updateEducationItem(idx, 'info', e.target.value)}
-                          placeholder="Notes"
-                          className="w-full md:col-span-2 border border-border rounded-lg px-3 py-2 bg-background text-foreground"
-                        />
+                        <input type="text" value={edu.place || ''} onChange={e => updateEducationItem(idx, 'place', e.target.value)} placeholder="Place" className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground" />
+                        <input type="text" value={edu.degree || ''} onChange={e => updateEducationItem(idx, 'degree', e.target.value)} placeholder="Degree" className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground" />
+                        <input type="date" value={edu.startingDate || ''} onChange={e => updateEducationItem(idx, 'startingDate', e.target.value)} className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground" />
+                        <input type="date" value={edu.endingDate || ''} onChange={e => updateEducationItem(idx, 'endingDate', e.target.value)} className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground" />
+                        <input type="text" value={edu.info || ''} onChange={e => updateEducationItem(idx, 'info', e.target.value)} placeholder="Notes" className="w-full md:col-span-2 border border-border rounded-lg px-3 py-2 bg-background text-foreground" />
                         <div className="md:col-span-2 flex justify-end">
                           <Button variant="ghost" onClick={() => removeEducationItem(idx)}>Remove</Button>
                         </div>
@@ -332,39 +309,11 @@ const Profile = () => {
                   <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {isEditing ? (
                       <>
-                        <input
-                          type="text"
-                          value={job.company || ''}
-                          onChange={e => updateWorkItem(idx, 'company', e.target.value)}
-                          placeholder="Company"
-                          className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground"
-                        />
-                        <input
-                          type="text"
-                          value={job.role || ''}
-                          onChange={e => updateWorkItem(idx, 'role', e.target.value)}
-                          placeholder="Role"
-                          className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground"
-                        />
-                        <input
-                          type="date"
-                          value={job.joiningDate || ''}
-                          onChange={e => updateWorkItem(idx, 'joiningDate', e.target.value)}
-                          className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground"
-                        />
-                        <input
-                          type="date"
-                          value={job.exitingDate || ''}
-                          onChange={e => updateWorkItem(idx, 'exitingDate', e.target.value)}
-                          className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground"
-                        />
-                        <input
-                          type="text"
-                          value={job.workNote || ''}
-                          onChange={e => updateWorkItem(idx, 'workNote', e.target.value)}
-                          placeholder="Notes"
-                          className="w-full md:col-span-2 border border-border rounded-lg px-3 py-2 bg-background text-foreground"
-                        />
+                        <input type="text" value={job.company || ''} onChange={e => updateWorkItem(idx, 'company', e.target.value)} placeholder="Company" className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground" />
+                        <input type="text" value={job.role || ''} onChange={e => updateWorkItem(idx, 'role', e.target.value)} placeholder="Role" className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground" />
+                        <input type="date" value={job.joiningDate || ''} onChange={e => updateWorkItem(idx, 'joiningDate', e.target.value)} className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground" />
+                        <input type="date" value={job.exitingDate || ''} onChange={e => updateWorkItem(idx, 'exitingDate', e.target.value)} className="w-full border border-border rounded-lg px-3 py-2 bg-background text-foreground" />
+                        <input type="text" value={job.workNote || ''} onChange={e => updateWorkItem(idx, 'workNote', e.target.value)} placeholder="Notes" className="w-full md:col-span-2 border border-border rounded-lg px-3 py-2 bg-background text-foreground" />
                         <div className="md:col-span-2 flex justify-end">
                           <Button variant="ghost" onClick={() => removeWorkItem(idx)}>Remove</Button>
                         </div>

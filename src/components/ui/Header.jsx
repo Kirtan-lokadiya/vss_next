@@ -8,6 +8,8 @@ import { useAuth } from '../../context/AuthContext';
 import { extractUserId } from '@/src/utils/jwt';
 import { fetchUserBasic, getAuthToken } from '@/src/utils/api';
 
+const USER_BASIC_CACHE_KEY = 'user_basic_v1';
+
 const Header = () => {
   const [showProfileMenu, setShowProfileMenu] = React.useState(false);
   const [showMobileMenu, setShowMobileMenu] = React.useState(false);
@@ -33,6 +35,8 @@ const Header = () => {
     { label: 'Ideas', path: '/ideas-whiteboard', icon: 'Lightbulb' },
     { label: 'Network', path: '/connection-network-tree', icon: 'Users' },
     { label: 'Questions', path: '/questions', icon: 'HelpCircle' },
+    { label: 'Liked', path: '/?filter=liked', icon: 'ThumbsUp' },
+    { label: 'Saved', path: '/?filter=saved', icon: 'Bookmark' },
   ];
 
   const isActivePath = (path) => router.pathname === path;
@@ -56,12 +60,30 @@ const Header = () => {
       setUserName('');
       return;
     }
+
+    // Try cache first to avoid fetch on every page navigation
+    try {
+      const cached = typeof window !== 'undefined' ? sessionStorage.getItem(USER_BASIC_CACHE_KEY) : null;
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.userId === uid && parsed.name) {
+          setUserName(parsed.name);
+          return; // cache hit; skip fetch
+        }
+      }
+    } catch {}
+
     let cancelled = false;
     (async () => {
       try {
         setLoadingUser(true);
         const data = await fetchUserBasic({ userId: uid, token });
-        if (!cancelled) setUserName(data?.name || '');
+        if (!cancelled) {
+          setUserName(data?.name || '');
+          try {
+            sessionStorage.setItem(USER_BASIC_CACHE_KEY, JSON.stringify({ userId: uid, name: data?.name || '' }));
+          } catch {}
+        }
       } catch {
         if (!cancelled) setUserName('');
       } finally {
@@ -85,7 +107,7 @@ const Header = () => {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <Icon name="Zap" size={20} color="white" />
             </div>
-            <span className="text-xl font-semibold text-foreground hidden sm:block">LinkedBoard Pro</span>
+            <span className="text-xl font-semibold text-foreground hidden sm:block">VSS</span>
           </Link>
         </div>
 
@@ -117,9 +139,9 @@ const Header = () => {
               variant="ghost"
               size="icon"
               onClick={toggleProfileMenu}
-              className="w-10 h-10 rounded-full bg-muted hover:bg-secondary/20"
+              className="w-10 h-10 rounded-full bg-muted hover:bg-primary"
             >
-              <Icon name="User" size={20} />
+              <Icon name="User" size={20} className="text-foreground group-hover:text-white" />
             </Button>
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-modal z-1010">

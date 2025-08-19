@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Header from '@/src/components/ui/Header';
-import NavigationBreadcrumb from '@/src/components/ui/NavigationBreadcrumb';
 import NetworkVisualization from './components/NetworkVisualization';
 import ConnectionDetails from './components/ConnectionDetails';
 
@@ -245,7 +244,7 @@ const ConnectionNetworkTree = () => {
 
   useEffect(() => {
     // Set page title
-    document.title = 'Connection Network Tree - LinkedBoard Pro';
+    document.title = 'Connection Network Tree - VSS';
   }, []);
 
   return (
@@ -254,26 +253,14 @@ const ConnectionNetworkTree = () => {
       
       <main className="pt-16">
         <div className="max-w-7xl mx-auto px-4 lg:px-6 py-6">
-          {/* Breadcrumb Navigation */}
-          <NavigationBreadcrumb className="mb-6" />
-
-          {/* Page Header */}
-          <div className="mb-6">
-            <p className="text-text-secondary">
-              Visualize and explore your professional network through interactive node-based connections
-            </p>
-          </div>
-
-       
-
-          {/* Main Content Grid */}
+          {/* Removed breadcrumb and page header; static navbar only */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             
 
             {/* Center - Network Visualization */}
             <div className="lg:col-span-2">
               <NetworkVisualization
-                connections={filteredConnections}
+                connections={mockConnections}
                 selectedNode={selectedNode}
                 onNodeSelect={handleNodeSelect}
                 viewMode={viewMode}

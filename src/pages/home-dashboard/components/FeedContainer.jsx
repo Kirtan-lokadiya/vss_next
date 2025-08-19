@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import FeedPost from './FeedPost';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
@@ -11,16 +11,15 @@ const FeedContainer = ({ newPost, refreshKey }) => {
   const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(1);
 
-  const filterOptions = [
-    { value: 'all', label: 'All Posts', icon: 'Grid3X3' },
-    { value: 'liked', label: 'Liked', icon: 'ThumbsUp' },
-    { value: 'saved', label: 'Saved', icon: 'Bookmark' },
-    { value: 'idea', label: 'Ideas', icon: 'Lightbulb' },
-    { value: 'thought', label: 'Thoughts', icon: 'MessageCircle' },
-  ];
+  // Guard against double effects in React 18 StrictMode (dev only)
+  const fetchedKeysRef = useRef(new Set());
 
   useEffect(() => {
+    const key = `${filter}|${String(refreshKey)}`;
+    if (fetchedKeysRef.current.has(key)) return;
+    fetchedKeysRef.current.add(key);
     loadPosts(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, refreshKey]);
 
   useEffect(() => {
@@ -87,20 +86,17 @@ const FeedContainer = ({ newPost, refreshKey }) => {
 
   return (
     <div className="space-y-6">
-
       {/* Posts Feed */}
       <div>
         {posts.map((post) => (
           <FeedPost key={post.id} post={post} />
         ))}
-        
         {loading && (
           <>
             <SkeletonPost />
             <SkeletonPost />
           </>
         )}
-        
         {!loading && posts.length === 0 && (
           <div className="bg-card border border-border rounded-lg shadow-card p-12 text-center">
             <Icon name="FileText" size={48} className="text-text-secondary mx-auto mb-4" />
@@ -113,7 +109,6 @@ const FeedContainer = ({ newPost, refreshKey }) => {
             </Button>
           </div>
         )}
-        
         {!loading && hasMore && posts.length > 0 && (
           <div className="text-center py-6">
             <Button 
@@ -128,7 +123,6 @@ const FeedContainer = ({ newPost, refreshKey }) => {
             </Button>
           </div>
         )}
-        
         {!loading && !hasMore && posts.length > 0 && (
           <div className="text-center py-6">
             <p className="text-text-secondary text-sm">You've reached the end of your feed</p>
