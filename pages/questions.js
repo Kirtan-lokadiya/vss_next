@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import Head from 'next/head';
 import Header from '@/src/components/ui/Header';
-import NavigationBreadcrumb from '@/src/components/ui/NavigationBreadcrumb';
 import Button from '@/src/components/ui/Button';
 import Link from 'next/link';
 import { QUESTIONS } from '@/src/utils/questionsData';
@@ -11,22 +10,18 @@ export default function QuestionsPage() {
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
-    return QUESTIONS.filter(q =>
-      q.title.toLowerCase().includes(search.toLowerCase())
-    );
+    return QUESTIONS.filter(q => q.title.toLowerCase().includes(search.toLowerCase()));
   }, [filter, search]);
 
   return (
     <>
       <Head>
-        <title>Questions - LinkedBoard Pro</title>
+        <title>Questions - VSS</title>
       </Head>
       <div className="min-h-screen bg-background">
         <Header />
         <div className="pt-16">
-          <div className="px-6 py-4 border-b border-border">
-            <NavigationBreadcrumb customBreadcrumbs={[{ label: 'Home', path: '/', icon: 'Home' }, { label: 'Questions', path: '/questions', icon: 'HelpCircle', current: true }]} />
-          </div>
+          {/* Breadcrumb removed for single navbar */}
           <div className="p-4">
             <div className="flex items-center justify-between mb-4">
               <input className="border border-border rounded px-2 py-1 text-sm" placeholder="Search..." value={search} onChange={(e)=>setSearch(e.target.value)} />

@@ -14,6 +14,10 @@ const PostCreationCard = ({ onPostCreated }) => {
   const [submitting, setSubmitting] = useState(false);
   const photoInputRef = useRef(null);
   const videoInputRef = useRef(null);
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [campaignTitle, setCampaignTitle] = useState('');
+  const [campaignGoal, setCampaignGoal] = useState('');
+  const [campaignDesc, setCampaignDesc] = useState('');
 
   const postTypes = [
     { value: 'idea', label: 'Share an idea', icon: 'Lightbulb' },
@@ -115,7 +119,7 @@ const PostCreationCard = ({ onPostCreated }) => {
           ))}
           <Button
             variant="outline"
-            onClick={() => (window.location.href = '/campaigns/new')}
+            onClick={() => setShowCampaignModal(true)}
             className="h-12 justify-start"
             iconName="Megaphone"
             iconPosition="left"
@@ -126,6 +130,7 @@ const PostCreationCard = ({ onPostCreated }) => {
         </div>
       </div>
 
+      {/* Post Composer Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onClick={() => setShowModal(false)}>
           <div className="bg-card border border-border rounded-lg shadow-modal w-full max-w-2xl" onClick={(e)=>e.stopPropagation()}>
@@ -223,6 +228,32 @@ const PostCreationCard = ({ onPostCreated }) => {
                   {submitting ? 'Posting...' : 'Post'}
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Campaign Modal */}
+      {showCampaignModal && (
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center" onClick={() => setShowCampaignModal(false)}>
+          <div className="bg-card border border-border rounded-lg shadow-modal w-full max-w-3xl" onClick={(e)=>e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="text-lg font-semibold text-foreground">Create Campaign</h3>
+              <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setShowCampaignModal(false)}>
+                <Icon name="X" size={16} />
+              </Button>
+            </div>
+            <div className="p-6 space-y-4">
+              <Input label="Title" value={campaignTitle} onChange={(e)=>setCampaignTitle(e.target.value)} placeholder="Campaign title" />
+              <Input label="Goal (optional)" type="number" value={campaignGoal} onChange={(e)=>setCampaignGoal(e.target.value)} placeholder="e.g. 500" />
+              <div>
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <textarea className="w-full border border-border rounded-lg px-3 py-2" rows={5} value={campaignDesc} onChange={(e)=>setCampaignDesc(e.target.value)} placeholder="Describe your campaign..." />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 p-4 border-t border-border">
+              <Button variant="ghost" onClick={()=>setShowCampaignModal(false)}>Cancel</Button>
+              <Button variant="default" iconName="Megaphone" iconPosition="left" onClick={()=>{ alert('Demo: Campaign created (dummy).'); setShowCampaignModal(false); setCampaignTitle(''); setCampaignGoal(''); setCampaignDesc(''); }}>Create</Button>
             </div>
           </div>
         </div>

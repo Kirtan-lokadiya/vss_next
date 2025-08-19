@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import Header from '@/src/components/ui/Header';
-import NavigationBreadcrumb from '@/src/components/ui/NavigationBreadcrumb';
 import Input from '@/src/components/ui/Input';
 import Button from '@/src/components/ui/Button';
 
@@ -21,14 +20,12 @@ const NewCampaignPage = () => {
   return (
     <>
       <Head>
-        <title>Create Campaign - LinkedBoard Pro</title>
+        <title>Create Campaign - VSS</title>
       </Head>
       <div className="min-h-screen bg-background">
         <Header />
         <div className="pt-16">
-          <div className="px-6 py-4 border-b border-border">
-            <NavigationBreadcrumb customBreadcrumbs={[{ label: 'Home', path: '/', icon: 'Home' }, { label: 'Create Campaign', path: '/campaigns/new', icon: 'Megaphone', current: true }]} />
-          </div>
+          {/* Breadcrumb removed for single navbar */}
           <div className="max-w-2xl mx-auto px-4 lg:px-6 py-6">
             <div className="bg-card border border-border rounded-lg shadow-card p-6 space-y-4">
               <h1 className="text-xl font-semibold text-foreground">Start a new campaign</h1>
