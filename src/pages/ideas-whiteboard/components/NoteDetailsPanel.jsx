@@ -83,13 +83,18 @@ const NoteDetailsPanel = ({
   };
 
   const getColorClasses = (color) => {
+    // Handle hex colors by converting them to a default color
+    if (color && color.startsWith('#')) {
+      color = 'yellow'; // Default fallback for hex colors
+    }
+    
     const colorMap = {
-      yellow: 'bg-yellow-100 border-yellow-300',
-      blue: 'bg-blue-100 border-blue-300',
-      green: 'bg-green-100 border-green-300',
-      pink: 'bg-pink-100 border-pink-300',
-      purple: 'bg-purple-100 border-purple-300',
-      orange: 'bg-orange-100 border-orange-300'
+      yellow: 'bg-yellow-100 border-yellow-400 text-yellow-900',
+      blue: 'bg-blue-100 border-blue-400 text-blue-900',
+      green: 'bg-green-100 border-green-400 text-green-900',
+      pink: 'bg-pink-100 border-pink-400 text-pink-900',
+      purple: 'bg-purple-100 border-purple-400 text-purple-900',
+      orange: 'bg-orange-100 border-orange-400 text-orange-900'
     };
     return colorMap[color] || colorMap.yellow;
   };
@@ -110,9 +115,9 @@ const NoteDetailsPanel = ({
 
       {/* Note Preview */}
       <div className="p-4 border-b border-border">
-        <div className={`p-4 rounded-lg border-2 ${getColorClasses(note.color)}`}>
+        <div className={`p-4 rounded-lg border-2 ${getColorClasses(note.color)} text-current`}>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-gray-800">{note.title}</h3>
+            <h3 className="font-semibold">{note.title}</h3>
             <div className="flex items-center space-x-1">
             <Button
               variant="ghost"
@@ -133,8 +138,8 @@ const NoteDetailsPanel = ({
               </Button>
             </div>
           </div>
-          <p className="text-sm text-gray-700 mb-3">{note.content}</p>
-          <div className="flex items-center justify-between text-xs text-gray-600">
+          <p className="text-sm mb-3">{note.content}</p>
+          <div className="flex items-center justify-between text-xs">
             <span>{note.author}</span>
             <span>{formatDate(note.createdAt)}</span>
           </div>

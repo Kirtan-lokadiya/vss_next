@@ -36,7 +36,7 @@ const PasswordModal = ({ open, onClose, onSuccess, isSet, error }) => {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[1030] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-sm" style={{ top: '64px' }}>
       <form onSubmit={handleSubmit} className="bg-card p-8 rounded-2xl shadow-modal w-full max-w-md space-y-6 relative">
         {/* Close removed as requested */}
         <h2 className="text-xl font-bold mb-2 text-foreground">{isSet ? 'Enter Your Password' : 'Set Your Password'}</h2>

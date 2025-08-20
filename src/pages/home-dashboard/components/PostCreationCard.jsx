@@ -125,7 +125,7 @@ const PostCreationCard = ({ onPostCreated }) => {
             iconPosition="left"
             iconSize={20}
           >
-            Create campaign
+            Open Found 
           </Button>
         </div>
       </div>
@@ -238,7 +238,7 @@ const PostCreationCard = ({ onPostCreated }) => {
         <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center" onClick={() => setShowCampaignModal(false)}>
           <div className="bg-card border border-border rounded-lg shadow-modal w-full max-w-3xl" onClick={(e)=>e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-border">
-              <h3 className="text-lg font-semibold text-foreground">Create Campaign</h3>
+              <h3 className="text-lg font-semibold text-foreground">Open Found</h3>
               <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setShowCampaignModal(false)}>
                 <Icon name="X" size={16} />
               </Button>

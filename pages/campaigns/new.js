@@ -20,7 +20,7 @@ const NewCampaignPage = () => {
   return (
     <>
       <Head>
-        <title>Create Campaign - VSS</title>
+        <title>Open Found - VSS</title>
       </Head>
       <div className="min-h-screen bg-background">
         <Header />

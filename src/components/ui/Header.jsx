@@ -94,7 +94,7 @@ const Header = () => {
   }, [isAuthenticated]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-background border-b border-border z-1000">
+    <header className="fixed top-0 left-0 right-0 bg-background border-b border-border z-[9999]">
       <div className="flex items-center justify-between h-16 px-4 lg:px-6">
         {/* Left: Hamburger + Logo */}
         <div className="flex items-center gap-2">
@@ -144,7 +144,7 @@ const Header = () => {
               <Icon name="User" size={20} className="text-foreground group-hover:text-white" />
             </Button>
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-modal z-1010">
+              <div className="absolute right-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-modal z-[10000]">
                 <div className="p-4 border-b border-border">
                   <div className="flex items-center space-x-3">
                     <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">

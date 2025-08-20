@@ -62,7 +62,19 @@ const StickyNote = ({
   };
 
   const getColorClasses = (color) => {
-    const colorMap = { yellow: 'bg-yellow-200 border-yellow-300', blue: 'bg-blue-200 border-blue-300', green: 'bg-green-200 border-green-300', pink: 'bg-pink-200 border-pink-300', purple: 'bg-purple-200 border-purple-300', orange: 'bg-orange-200 border-orange-300' };
+    // Handle hex colors by converting them to a default color
+    if (color && color.startsWith('#')) {
+      color = 'yellow'; // Default fallback for hex colors
+    }
+    
+    const colorMap = {
+      yellow: 'bg-yellow-100 border-yellow-400 text-yellow-900',
+      blue: 'bg-blue-100 border-blue-400 text-blue-900',
+      green: 'bg-green-100 border-green-400 text-green-900',
+      pink: 'bg-pink-100 border-pink-400 text-pink-900',
+      purple: 'bg-purple-100 border-purple-400 text-purple-900',
+      orange: 'bg-orange-100 border-orange-400 text-orange-900'
+    };
     return colorMap[color] || colorMap.yellow;
   };
 
@@ -81,27 +93,27 @@ const StickyNote = ({
       onClick={() => onSelect(note.id)}
       onDoubleClick={handleDoubleClick}
     >
-      <div className={`w-64 h-48 p-4 rounded-lg border-2 shadow-lg hover:shadow-xl transition-shadow ${getColorClasses(note.color)}`}>
+      <div className={`w-64 h-48 p-4 rounded-lg border-2 shadow-lg hover:shadow-xl transition-shadow ${getColorClasses(note.color)} text-current`}>
         <div className="flex items-start justify-between mb-2">
           {isEditing ? (
-            <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="flex-1 text-sm font-semibold bg-transparent border-none outline-none resize-none" placeholder="Note title..." onKeyDown={handleKeyDown} />
+            <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="flex-1 text-sm font-semibold bg-transparent border-none outline-none resize-none placeholder:text-gray-500 text-gray-900" placeholder="Note title..." onKeyDown={handleKeyDown} />
           ) : (
-            <h3 className="text-sm font-semibold text-gray-800 line-clamp-1">{note.title}</h3>
+            <h3 className="text-sm font-semibold line-clamp-1">{note.title}</h3>
           )}
           {!isEditing && (
             <div className="flex items-center space-x-1 ml-2">
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="w-6 h-6 hover:bg-white/50" title="Edit note"><Icon name="Pencil" size={12} /></Button>
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); cycleColor(); }} className="w-6 h-6 hover:bg-white/50" title="Change color"><Icon name="Palette" size={12} /></Button>
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/search?q=${encodeURIComponent(note.title || '')}`); }} className="w-6 h-6 hover:bg-white/50" title="Search this idea"><Icon name="Globe" size={14} /></Button>
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="w-6 h-6 hover:bg-white/50 text-current" title="Edit note"><Icon name="Pencil" size={12} /></Button>
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); cycleColor(); }} className="w-6 h-6 hover:bg-white/50 text-current" title="Change color"><Icon name="Palette" size={12} /></Button>
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/search?q=${encodeURIComponent(note.title || '')}`); }} className="w-6 h-6 hover:bg-white/50 text-current" title="Search this idea"><Icon name="Globe" size={14} /></Button>
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(note.id); }} className="w-6 h-6 hover:bg-red-100 text-red-600" title="Delete note"><Icon name="Trash2" size={12} /></Button>
             </div>
           )}
         </div>
         <div className="flex-1 mb-3">
           {isEditing ? (
-            <textarea ref={textareaRef} value={editContent} onChange={(e) => setEditContent(e.target.value)} className="w-full h-20 text-xs bg-transparent border-none outline-none resize-none" placeholder="Write your idea here..." onKeyDown={handleKeyDown} />
+            <textarea ref={textareaRef} value={editContent} onChange={(e) => setEditContent(e.target.value)} className="w-full h-20 text-xs bg-transparent border-none outline-none resize-none placeholder:text-gray-500 text-gray-900" placeholder="Write your idea here..." onKeyDown={handleKeyDown} />
           ) : (
-            <p className="text-xs text-gray-700 line-clamp-4 leading-relaxed">{note.content}</p>
+            <p className="text-xs line-clamp-4 leading-relaxed">{note.content}</p>
           )}
         </div>
       </div>

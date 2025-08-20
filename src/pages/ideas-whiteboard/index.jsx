@@ -221,7 +221,7 @@ const IdeasWhiteboard = () => {
     // POST to create on server
     const payload = {
       content: optimistic.content,
-      properties: { x: nextPos.x, y: nextPos.y, z: 5, color: '#ffffff', height: 100, width: 200 },
+      properties: { x: nextPos.x, y: nextPos.y, z: 5, color: 'yellow', height: 100, width: 200 },
     };
     const created = await createNote(token, payload);
     if (created?.success && created.note) {
