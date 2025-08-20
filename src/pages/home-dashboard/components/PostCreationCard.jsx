@@ -5,7 +5,7 @@ import Input from '@/src/components/ui/Input';
 import { createIdea, getAuthToken } from '@/src/utils/api';
 import { extractUserId } from '@/src/utils/jwt';
 
-const PostCreationCard = ({ onPostCreated }) => {
+const PostCreationCard = ({ onPostCreated, onCampaignCreated }) => {
   const [postContent, setPostContent] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedPostType, setSelectedPostType] = useState('idea');
@@ -253,7 +253,7 @@ const PostCreationCard = ({ onPostCreated }) => {
             </div>
             <div className="flex items-center justify-end gap-2 p-4 border-t border-border">
               <Button variant="ghost" onClick={()=>setShowCampaignModal(false)}>Cancel</Button>
-              <Button variant="default" iconName="Megaphone" iconPosition="left" onClick={()=>{ alert('Demo: Campaign created (dummy).'); setShowCampaignModal(false); setCampaignTitle(''); setCampaignGoal(''); setCampaignDesc(''); }}>Create</Button>
+              <Button variant="default" iconName="Megaphone" iconPosition="left" onClick={()=>{ const campaign = { id: `local-campaign-${Date.now()}`, title: (campaignTitle || 'Funding Campaign').trim(), goal: Number(campaignGoal) || 630000, description: (campaignDesc || 'Support this idea by contributing to the campaign.').trim(), raised: 37807 }; try { onCampaignCreated && onCampaignCreated(campaign); } catch {} setShowCampaignModal(false); setCampaignTitle(''); setCampaignGoal(''); setCampaignDesc(''); }}>Create</Button>
             </div>
           </div>
         </div>

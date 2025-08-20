@@ -4,7 +4,7 @@ import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
 import { fetchFeed, fetchUserLiked, fetchUserSaved, getAuthToken, mapApiPostToUI } from '@/src/utils/api';
 
-const FeedContainer = ({ newPost, refreshKey }) => {
+const FeedContainer = ({ newPost, refreshKey, attachCampaign, onCampaignAttached }) => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -27,6 +27,25 @@ const FeedContainer = ({ newPost, refreshKey }) => {
       setPosts(prev => [newPost, ...prev]);
     }
   }, [newPost]);
+
+  // Attach a dummy campaign to the first post when provided
+  useEffect(() => {
+    if (!attachCampaign) return;
+    setPosts(prev => {
+      if (prev.length === 0) return prev;
+      const updated = [...prev];
+      const first = { ...updated[0] };
+      first.campaign = {
+        title: attachCampaign.title || 'Funding Campaign',
+        goal: attachCampaign.goal || 630000,
+        raised: typeof attachCampaign.raised === 'number' ? attachCampaign.raised : 0,
+        description: attachCampaign.description || ''
+      };
+      updated[0] = first;
+      return updated;
+    });
+    onCampaignAttached && onCampaignAttached();
+  }, [attachCampaign, onCampaignAttached]);
 
   const loadPosts = async (reset = false) => {
     setLoading(true);

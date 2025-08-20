@@ -10,6 +10,7 @@ import Icon from '../src/components/AppIcon';
 const HomePage = () => {
   const [showProfile, setShowProfile] = useState(false);
   const [feedRefreshKey, setFeedRefreshKey] = useState(0);
+  const [pendingCampaign, setPendingCampaign] = useState(null);
 
   const handlePosted = () => {
     setFeedRefreshKey(Date.now());
@@ -62,9 +63,9 @@ const HomePage = () => {
               {/* Center Column - Main Feed */}
               <div>
                 {/* Post Creation */}
-                <PostCreationCard onPostCreated={handlePosted} />
+                <PostCreationCard onPostCreated={handlePosted} onCampaignCreated={setPendingCampaign} />
                 {/* Feed Container */}
-                <FeedContainer refreshKey={feedRefreshKey} />
+                <FeedContainer refreshKey={feedRefreshKey} attachCampaign={pendingCampaign} onCampaignAttached={() => setPendingCampaign(null)} />
               </div>
             </div>
           </main>

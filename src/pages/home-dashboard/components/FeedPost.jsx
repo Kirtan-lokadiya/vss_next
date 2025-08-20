@@ -16,10 +16,11 @@ const FeedPost = ({ post }) => {
   const [likeCount, setLikeCount] = useState(post.likes || 0);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [donationPool, setDonationPool] = useState(post.donationPool || 0);
+  const [donationPool, setDonationPool] = useState(post?.campaign?.raised || post.donationPool || 0);
   const [showDonate, setShowDonate] = useState(false);
   const [donationAmount, setDonationAmount] = useState(5);
   const [mutating, setMutating] = useState(false);
+  const goal = post?.campaign?.goal || 630000; // default goal if campaign exists or not
 
   const handleLike = async () => {
     if (!isAuthenticated) {
@@ -162,6 +163,43 @@ const FeedPost = ({ post }) => {
         <div className="prose prose-sm max-w-none">
           <p className="text-foreground leading-relaxed mb-3">{post.content}</p>
         </div>
+
+        {/* Campaign Block (dummy/local) */}
+        {post.campaign && (
+          <div className="mt-3 border border-border rounded-xl p-4 bg-muted/20">
+            <div className="flex items-center mb-2 text-foreground font-medium">
+              <Icon name="CurrencyDollar" size={16} className="mr-2 text-primary" />
+              {post.campaign.title || 'Funding Campaign'}
+            </div>
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all"
+                style={{ width: `${Math.min(100, Math.round(((donationPool) / (goal || 1)) * 100))}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-2 text-xs text-text-secondary">
+              <span>₹{(donationPool).toLocaleString('en-IN')} raised</span>
+              <span>{Math.min(100, Math.round(((donationPool) / (goal || 1)) * 100))}% funded</span>
+              <span>Goal: ₹{(goal).toLocaleString('en-IN')}</span>
+            </div>
+            <div className="flex justify-end mt-3">
+              <Button variant="outline" size="sm" onClick={() => setShowDonate(!showDonate)}>Donate</Button>
+            </div>
+            {showDonate && (
+              <div className="mt-3 p-3 border border-border rounded-lg bg-card">
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {[50,100,500,1000].map(v => (
+                    <Button key={v} variant="secondary" size="sm" onClick={() => handleDonate(v)}>₹{v}</Button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="number" value={donationAmount} onChange={(e)=>setDonationAmount(e.target.value)} className="w-28 px-3 py-2 border border-border rounded-lg text-sm"/>
+                  <Button variant="default" size="sm" onClick={()=>handleDonate(donationAmount)}>Add</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Engagement Stats */}
@@ -172,7 +210,12 @@ const FeedPost = ({ post }) => {
             <span>{post.comments || 0} comments</span>
             <span>{post.shares || 0} shares</span>
           </div>
-          <span>{post.views || 0} views</span>
+          <div className="flex items-center gap-4">
+            <span>{post.views || 0} views</span>
+            {post.campaign && (
+              <button className="text-primary hover:underline" onClick={() => setShowDonate(true)}>Donate</button>
+            )}
+          </div>
         </div>
       </div>
 
