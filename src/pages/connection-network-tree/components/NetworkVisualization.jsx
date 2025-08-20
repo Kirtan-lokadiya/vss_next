@@ -2,11 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
 
-const NetworkVisualization = ({ 
-  connections, 
-  selectedNode, 
-  onNodeSelect, 
-  viewMode, 
+const NetworkVisualization = ({
+  connections,
+  selectedNode,
+  onNodeSelect,
+  viewMode,
   onViewModeChange,
   className = '',
   showControls = true,
@@ -132,25 +132,54 @@ const NetworkVisualization = ({
 
       <svg ref={svgRef} width="100%" height="600" className="cursor-grab active:cursor-grabbing" style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
+          {/* Center user node */}
+          {(() => {
+            const up = nodePositions.get('user');
+            if (!up) return null;
+            return (
+              <g key="user-node">
+                <circle cx={up.x} cy={up.y} r={24} fill="#0A66C2" stroke="#FFFFFF" strokeWidth={3} />
+                <text x={up.x} y={up.y + 40} textAnchor="middle" className="text-xs fill-foreground">You</text>
+              </g>
+            );
+          })()}
+
+          {/* Lines from center to each node */}
           {connections.map((connection) => {
             const userPos = nodePositions.get('user');
             const connectionPos = nodePositions.get(connection.id);
             if (!userPos || !connectionPos) return null;
-            return (<line key={`line-${connection.id}`} x1={userPos.x} y1={userPos.y} x2={connectionPos.x} y2={connectionPos.y} stroke={hoveredConnection === connection.id ? '#0A66C2' : '#E4E6EA'} strokeWidth={hoveredConnection === connection.id ? 3 : 2} opacity={0.6} className="transition-all duration-200" />);
+            return (
+              <line
+                key={`line-${connection.id}`}
+                x1={userPos.x}
+                y1={userPos.y}
+                x2={connectionPos.x}
+                y2={connectionPos.y}
+                stroke={hoveredConnection === connection.id ? '#0A66C2' : '#E4E6EA'}
+                strokeWidth={hoveredConnection === connection.id ? 3 : 2}
+                opacity={0.6}
+                className="transition-all duration-200"
+              />
+            );
           })}
 
           {connections.map((connection) => {
             const position = nodePositions.get(connection.id);
             if (!position) return null;
             return (
-              <g key={connection.id}>
+              <g key={connection.id} onClick={() => handleNodeClick(connection, position)} onMouseEnter={() => handleConnectionHover(connection.id)} onMouseLeave={() => handleConnectionHover(null)} className="cursor-pointer">
                 <defs>
-                  <pattern id={`avatar-${connection.id}`} patternUnits="objectBoundingBox" width="1" height="1">
-                    <image href={connection.avatar} x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice" />
-                  </pattern>
+                  <clipPath id={`clip-${connection.id}`}>
+                    <circle cx={position.x} cy={position.y} r={20} />
+                  </clipPath>
                 </defs>
-                <circle cx={position.x} cy={position.y} r={20} fill={connection.avatar ? `url(#avatar-${connection.id})` : getNodeColor(connection)} stroke="#FFFFFF" strokeWidth={3} className="cursor-pointer hover:stroke-primary transition-colors" onClick={() => handleNodeClick(connection, position)} onMouseEnter={() => handleConnectionHover(connection.id)} onMouseLeave={() => handleConnectionHover(null)} />
-                <text x={position.x} y={position.y + 35} textAnchor="middle" className="text-xs fill-foreground cursor-pointer" onClick={() => handleNodeClick(connection, position)}>{connection.name.split(' ')[0]}</text>
+                <circle cx={position.x} cy={position.y} r={20} fill={getNodeColor(connection)} stroke="#FFFFFF" strokeWidth={3} />
+                {connection.avatar && (
+                  <image href={connection.avatar} x={position.x - 20} y={position.y - 20} width="40" height="40" preserveAspectRatio="xMidYMid slice" clipPath={`url(#clip-${connection.id})`} />
+                )}
+                <circle cx={position.x} cy={position.y} r={20} fill="none" stroke="#FFFFFF" strokeWidth={3} />
+                <text x={position.x} y={position.y + 35} textAnchor="middle" className="text-xs fill-foreground">{connection.name.split(' ')[0]}</text>
                 <circle cx={position.x + 15} cy={position.y - 15} r={4} fill={getNodeColor(connection)} className="opacity-80" />
               </g>
             );
