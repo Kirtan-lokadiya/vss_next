@@ -1,358 +1,238 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import PasswordModal from '@/src/components/ui/PasswordModal';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import Header from '@/src/components/ui/Header';
 import WhiteboardCanvas from './components/WhiteboardCanvas';
 import ToolbarTop from '@/src/pages/ideas-whiteboard/components/ToolbarTop';
+import WhiteboardPasswordModal from '@/src/components/ui/WhiteboardPasswordModal';
 import Icon from '@/src/components/AppIcon';
-import Button from '@/src/components/ui/Button';
 import { useAuth } from '@/src/context/AuthContext';
-import { getNotes, createNote, updateNote, updateNoteContent } from '@/src/utils/notesApi';
+import { useWhiteboard } from '@/src/context/WhiteboardContext';
 
 const IdeasWhiteboard = () => {
-  const [notes, setNotes] = useState([]);
-  const [connections, setConnections] = useState([]);
-  const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [scale, setScale] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredNotes, setFilteredNotes] = useState([]);
-  const [showDetailsPanel, setShowDetailsPanel] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [passwordIsSet, setPasswordIsSet] = useState(false);
-  const [pendingNoteData, setPendingNoteData] = useState(null);
-  const [userPassword, setUserPassword] = useState('');
-  const { token } = useAuth();
-  const [viewportWidth, setViewportWidth] = useState(1024);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [searchResults, setSearchResults] = useState(null);
+  
+  const { token, isAuthenticated } = useAuth();
+  const { 
+    notes, 
+    isPasswordSet, 
+    isUnlocked, 
+    loading, 
+    error,
+    createNote, 
+    updateNoteContent, 
+    updateNotePosition, 
+    deleteNote,
+    searchNotes,
+    searchNoteById,
+    reset
+  } = useWhiteboard();
 
-  // Debounce timers per noteId for saving
-  const saveTimersRef = useRef(new Map());
-
-  // Prompt when visiting ideas page; check server for passkey and open modal
+  // Show password modal when user visits and is authenticated
   useEffect(() => {
-    if (!token) return;
-    (async () => {
-      try {
-        const res = await fetch(`/api/security/passkeys-user`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        const data = await res.json();
-        if (data?.errors && data.errors.message === 'Security Key Not Found') {
-          setPasswordIsSet(false); // show Set Password
-        } else if (data?.id && data?.publicKey) {
-          setPasswordIsSet(true); // show Unlock password prompt
-        } else {
-          setPasswordIsSet(true);
-        }
-        setPasswordModalOpen(true);
-      } catch {
-        setPasswordIsSet(true);
-        setPasswordModalOpen(true);
-      }
-    })();
-  }, [token]);
+    if (isAuthenticated && token && !isUnlocked && !showPasswordModal) {
+      setShowPasswordModal(true);
+    }
+  }, [isAuthenticated, token, isUnlocked, showPasswordModal]);
 
-  // Track viewport width for responsive grid placement
+  // Reset whiteboard when user logs out
   useEffect(() => {
-    const init = () => {
-      if (typeof window !== 'undefined') setViewportWidth(window.innerWidth || 1024);
-    };
-    init();
-    if (typeof window !== 'undefined') {
-      const onResize = () => setViewportWidth(window.innerWidth || 1024);
-      window.addEventListener('resize', onResize);
-      return () => window.removeEventListener('resize', onResize);
+    if (!isAuthenticated) {
+      reset();
+      setShowPasswordModal(false);
     }
-  }, []);
+  }, [isAuthenticated, reset]);
 
-  // Compute responsive grid position for an index
-  const getGridPosition = useCallback((idx) => {
-    const NOTE_W = 256; // px (w-64)
-    const NOTE_H = 192; // px (h-48)
-    const GAP = 24;     // px
-    const usableWidth = Math.max(320, viewportWidth - GAP * 2);
-    const perRow = Math.max(1, Math.floor(usableWidth / (NOTE_W + GAP)));
-    const col = idx % perRow;
-    const row = Math.floor(idx / perRow);
-    const x = GAP + col * (NOTE_W + GAP);
-    const y = GAP + row * (NOTE_H + GAP);
-    return { x, y };
-  }, [viewportWidth]);
-
-  // Load notes from backend after unlock
-  const loadNotes = useCallback(async () => {
-    if (!token) return;
-    // Don't call API without password - this prevents incomplete requests
-    if (!userPassword) return;
-
-    const res = await getNotes(token, 1, 5, userPassword);
-    if (!res.success) {
-      console.error('Error loading notes:', res.error);
-      // Check if it's a password error
-      if (res.api?.customCode === 1001 || res.customCode === 1001) {
-        setPasswordError("Wrong password! Please try again.");
-        setPasswordModalOpen(true);   // keep modal open
-        setNotes([]);
-      }
-      return;
-    }
-
-    // ✅ Clear error if successful (including empty page)
-    setPasswordError('');
-
-    // Normal success (including empty notes list)
-    const list = res.data || [];
-    const mapped = await Promise.all(list.map(async (n, idx) => {
-      const properties = n.properties || {};
-      // Fallback responsive grid position if properties missing to avoid overlap
-      const fallbackPos = getGridPosition(idx);
-      return {
-        id: n.noteId || n.id,
-        title: `Note #${n.noteId || n.id}`,
-        content: n.content,
-        color: properties.color || '#ffffff',
-        createdAt: new Date().toISOString(),
-        position: { x: (properties.x ?? fallbackPos.x), y: (properties.y ?? fallbackPos.y) },
-        zIndex: properties.z ?? 1,
-        size: { width: properties.width ?? 200, height: properties.height ?? 100 },
-        comments: [],
-        raw: n,
-      };
-    }));
-    setNotes(mapped);
-    setFilteredNotes(mapped);
-  }, [token, userPassword]);
-
-  // Only load notes when we have a password
-  useEffect(() => {
-    if (userPassword) {
-      loadNotes();
-    }
-  }, [loadNotes]);
-
+  // Filter notes based on search query
   useEffect(() => {
     if (searchQuery.trim()) {
       const filtered = notes.filter(note =>
-        (note.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (note.content || '').toLowerCase().includes(searchQuery.toLowerCase())
+        note.content.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredNotes(filtered);
     } else {
       setFilteredNotes(notes);
+      setSearchResults(null);
     }
   }, [notes, searchQuery]);
 
-  // Called after password modal success
-  const handlePasswordSuccess = useCallback(async (enteredPassword) => {
-    setUserPassword(enteredPassword || userPassword);
+  // Handle password modal close
+  const handlePasswordModalClose = useCallback(() => {
+    if (isUnlocked) {
+      setShowPasswordModal(false);
+    }
+  }, [isUnlocked]);
 
-    // Try to load notes with the password
-    const res = await getNotes(token, 1, 5, enteredPassword);
+  // Handle creating a new note
+  const handleCreateNote = useCallback(async () => {
+    if (!isUnlocked) return;
 
-    if (!res.success) {
-      // Wrong password (401 Unauth) from backend
-      if (res.status === 401 || (res.api && res.api.status === 401)) {
-        setPasswordError('Wrong password! Please try again.');
-        setPasswordModalOpen(true);
-        setNotes([]);
-        return;
+    try {
+      await createNote('New note');
+    } catch (error) {
+      console.error('Error creating note:', error);
+    }
+  }, [isUnlocked, createNote]);
+
+  // Handle note content update
+  const handleUpdateNote = useCallback(async (noteId, updates) => {
+    if (!isUnlocked) return;
+
+    try {
+      if (updates.content !== undefined) {
+        await updateNoteContent(noteId, updates.content);
       }
-      if (res.api?.customCode === 1001 || res.customCode === 1001) {
-        setPasswordError('Wrong password! Please try again.');
-        setPasswordModalOpen(true);
-        setNotes([]);
-        return;
-      } else {
-        console.error('Error loading notes:', res.error);
-        setPasswordError('Failed to load notes. Please try again.');
-        setPasswordModalOpen(true);
-        return;
+    } catch (error) {
+      console.error('Error updating note:', error);
+    }
+  }, [isUnlocked, updateNoteContent]);
+
+  // Handle note position update
+  const handleMoveNote = useCallback(async (noteId, newPosition) => {
+    if (!isUnlocked) return;
+
+    try {
+      // Find the note to get current properties
+      const note = notes.find(n => n.noteId === noteId);
+      if (note) {
+        const updatedProperties = {
+          ...note.properties,
+          x: newPosition.x,
+          y: newPosition.y
+        };
+        await updateNotePosition(noteId, updatedProperties);
       }
+    } catch (error) {
+      console.error('Error moving note:', error);
     }
+  }, [isUnlocked, notes, updateNotePosition]);
 
-    // ✅ Success - clear error and close modal
-    setPasswordError('');
-    setPasswordModalOpen(false);
+  // Handle note deletion
+  const handleDeleteNote = useCallback(async (noteId) => {
+    if (!isUnlocked) return;
 
-    // Load notes successfully (including empty list)
-    const list = res.data || [];
-    const mapped = await Promise.all(list.map(async (n) => {
-      const properties = n.properties || {};
-      return {
-        id: n.noteId || n.id,
-        title: `Note #${n.noteId || n.id}`,
-        content: n.content,
-        color: properties.color || '#ffffff',
-        createdAt: new Date().toISOString(),
-        position: { x: properties.x ?? 100, y: properties.y ?? 100 },
-        zIndex: properties.z ?? 1,
-        size: { width: properties.width ?? 200, height: properties.height ?? 100 },
-        comments: [],
-        raw: n,
-      };
-    }));
-    setNotes(mapped);
-    setFilteredNotes(mapped);
-
-    // If creation was requested, create a blank note via API, then reload
-    if (pendingNoteData) {
-      const baseX = 100, baseY = 100, delta = 24;
-      const idx = mapped.length;
-      const payload = {
-        content: pendingNoteData.content || 'New note',
-        properties: { x: baseX + (idx % 5) * delta, y: baseY + (idx % 5) * delta, z: 5, color: '#ffffff', height: 100, width: 200 },
-      };
-      await createNote(token, payload);
-      await loadNotes();
-      setPendingNoteData(null);
+    try {
+      await deleteNote(noteId);
+    } catch (error) {
+      console.error('Error deleting note:', error);
     }
-  }, [pendingNoteData, token, userPassword, loadNotes]);
+  }, [isUnlocked, deleteNote]);
 
-  // Helper: compute next position in a responsive grid to avoid overlap
-  const computeNextPosition = useCallback(() => {
-    const idx = notes.length;
-    return getGridPosition(idx);
-  }, [notes.length, getGridPosition]);
-
-  const handleCreateNote = useCallback(async (noteData = {}) => {
-    if (!token || !userPassword) return;
-
-    // Compute next position (responsive)
-    const nextPos = computeNextPosition();
-    const currentMaxZ = notes.reduce((m, n) => Math.max(m, Number(n.zIndex || n.z || 1)), 1);
-    const nextZ = currentMaxZ + 1;
-
-    // Optimistic insert
-    const tempId = `temp-${Date.now()}`;
-    const optimistic = {
-      id: tempId,
-      title: `Note #${tempId}`,
-      content: noteData.content || 'New note',
-      color: 'yellow',
-      createdAt: new Date().toISOString(),
-      position: nextPos,
-      zIndex: nextZ,
-      comments: [],
-      raw: {},
-    };
-    setNotes(prev => [...prev, optimistic]);
-    setFilteredNotes(prev => [...prev, optimistic]);
-    setSelectedNoteId(null);
-    setShowDetailsPanel(false);
-
-    // POST to create on server
-    const payload = {
-      content: optimistic.content,
-      properties: { x: nextPos.x, y: nextPos.y, z: nextZ, color: 'yellow', height: 100, width: 200 },
-    };
-    const created = await createNote(token, payload);
-    if (created?.success && created.note) {
-      const newId = created.note.noteId || created.note.id;
-      // Replace temp note with server one
-      setNotes(prev => prev.map(n => n.id === tempId ? { ...n, id: newId, title: `Note #${newId}`, raw: created.note } : n));
-      setFilteredNotes(prev => prev.map(n => n.id === tempId ? { ...n, id: newId, title: `Note #${newId}`, raw: created.note } : n));
-    } else {
-      // On failure, remove optimistic note
-      setNotes(prev => prev.filter(n => n.id !== tempId));
-      setFilteredNotes(prev => prev.filter(n => n.id !== tempId));
-    }
-  }, [token, userPassword, notes.length]);
-
-  // // Do not PUT on drag anymore; only update UI state
-  // const handleMoveNote = useCallback(async (noteId, newPosition) => {
-  //   setNotes(prev => prev.map(note => (note.id === noteId ? { ...note, position: newPosition } : note)));
-  //   // Debounce SAVE of position by 2s
-  //   const timers = saveTimersRef.current;
-  //   if (timers.has(noteId)) {
-  //     clearTimeout(timers.get(noteId));
-  //   }
-  //   const to = setTimeout(async () => {
-  //     try {
-  //       if (!token) return;
-  //       await updateNote(token, noteId, { x: newPosition.x, y: newPosition.y });
-  //     } catch (e) {
-  //       console.error('Failed to save position', e);
-  //     }
-  //   }, 2000);
-  //   timers.set(noteId, to);
-  // }, [token]);
-
-  const handleSelectNote = useCallback((noteId) => {
-    setSelectedNoteId(noteId);
-    setShowDetailsPanel(true);
-  }, []);
-
+  // Handle local search
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
   }, []);
 
-  const handleCanvasClick = useCallback(() => {
-    setSelectedNoteId(null);
-    setShowDetailsPanel(false);
-  }, []);
+  // Handle global search
+  const handleGlobalSearch = useCallback(async (query) => {
+    if (!isUnlocked || !query.trim()) return;
 
-  const handleUpdateNote = useCallback((noteId, updates) => {
-    setNotes(prev => prev.map(note => note.id === noteId ? { ...note, ...updates } : note));
-  }, []);
-
-  // Save edited content to backend when StickyNote triggers save
-  const handleSaveNoteContent = useCallback(async (noteId, updates) => {
-    // Optimistically update UI
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, title: updates.title, content: updates.content } : n));
-    setFilteredNotes(prev => prev.map(n => n.id === noteId ? { ...n, title: updates.title, content: updates.content } : n));
-    // Debounce content/title save by 2s
-    const timers = saveTimersRef.current;
-    if (timers.has(`content-${noteId}`)) {
-      clearTimeout(timers.get(`content-${noteId}`));
-    }
-    const to = setTimeout(async () => {
-      try {
-        if (!token) return;
-        await updateNoteContent(token, noteId, { title: updates.title, content: updates.content });
-      } catch (e) {
-        console.error('Failed to save content', e);
+    try {
+      // First search locally
+      const localResults = await searchNotes(query);
+      
+      if (localResults.success && localResults.notes.length > 0) {
+        // If we have local results, use the first one for global search
+        const firstNote = localResults.notes[0];
+        const globalResults = await searchNoteById(firstNote.noteId);
+        
+        if (globalResults.success) {
+          setSearchResults({
+            query,
+            localResults: localResults.notes,
+            globalResults: globalResults.users || []
+          });
+        }
       }
-    }, 2000);
-    timers.set(`content-${noteId}`, to);
-  }, [token]);
-
-  const handleDeleteNote = useCallback(async (noteId) => {
-    if (!token) return;
-    const res = await updateNote(token, noteId, { isDeleted: true });
-    if (res.success) {
-      setNotes(prev => prev.filter(n => n.id !== noteId));
-      setFilteredNotes(prev => prev.filter(n => n.id !== noteId));
-    } else {
-      console.error('Error deleting note:', res.error);
+    } catch (error) {
+      console.error('Error performing global search:', error);
     }
-  }, [token]);
+  }, [isUnlocked, searchNotes, searchNoteById]);
 
-  const selectedNote = notes.find(note => note.id === selectedNoteId);
+  // Transform notes for canvas display
+  const canvasNotes = filteredNotes.map(note => ({
+    id: note.noteId,
+    title: `Note #${Math.abs(note.noteId)}`,
+    content: note.content,
+    color: note.properties?.color || '#ffffff',
+    createdAt: new Date().toISOString(),
+    position: { 
+      x: note.properties?.x || 100, 
+      y: note.properties?.y || 100 
+    },
+    zIndex: note.properties?.z || 1,
+    size: { 
+      width: note.properties?.width || 200, 
+      height: note.properties?.height || 100 
+    },
+    comments: [],
+    raw: note,
+  }));
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-foreground">Loading whiteboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show authentication required
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Icon name="Lock" size={48} className="text-text-secondary mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">Authentication Required</h2>
+          <p className="text-text-secondary">Please log in to access the whiteboard.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="min-h-screen bg-background">
-        {/* Top navbar only */}
         <Header />
         <div className="pt-16">
-          {/* Main Content - no left/right panels */}
           <div className="h-[calc(100vh-8rem)] flex flex-col">
-            {/* Top Bar with only search */}
+            {/* Top Toolbar */}
             <ToolbarTop
               scale={scale}
               onSearch={handleSearch}
               searchQuery={searchQuery}
+              onGlobalSearch={handleGlobalSearch}
             />
 
-            {/* Canvas */}
+            {/* Main Canvas Area */}
             <div className="flex-1 relative">
+              {/* Show unlock message when locked */}
+              {!isUnlocked && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+                  <div className="text-center">
+                    <Icon name="Lock" size={48} className="text-text-secondary mx-auto mb-4" />
+                    <h2 className="text-xl font-semibold text-foreground mb-2">Whiteboard Locked</h2>
+                    <p className="text-text-secondary mb-4">Enter your password to access your notes</p>
+                    <button
+                      onClick={() => setShowPasswordModal(true)}
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+                    >
+                      Unlock Whiteboard
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Empty state */}
-              {filteredNotes.length === 0 && (
+              {isUnlocked && filteredNotes.length === 0 && !searchQuery && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="text-center">
                     <Icon name="StickyNote" size={48} className="text-text-secondary mx-auto mb-2" />
@@ -362,38 +242,88 @@ const IdeasWhiteboard = () => {
                 </div>
               )}
 
-              <WhiteboardCanvas
-                notes={filteredNotes}
-                connections={connections}
-                onUpdateNote={handleSaveNoteContent}
-                onDeleteNote={handleDeleteNote}
-                // onMoveNote={handleMoveNote}
-                selectedNoteId={null}
-                onSelectNote={() => {}}
-                onConnectNotes={() => {}}
-                scale={scale}
-                viewMode={'grid'}
-                onCanvasClick={handleCanvasClick}
-              />
+              {/* No search results */}
+              {isUnlocked && filteredNotes.length === 0 && searchQuery && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="text-center">
+                    <Icon name="Search" size={48} className="text-text-secondary mx-auto mb-2" />
+                    <div className="text-lg font-medium text-foreground">No notes found</div>
+                    <div className="text-sm text-text-secondary">Try a different search term</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Search results display */}
+              {searchResults && (
+                <div className="absolute top-4 right-4 bg-card border border-border rounded-lg p-4 max-w-sm z-20">
+                  <h3 className="font-semibold text-foreground mb-2">Search Results</h3>
+                  <p className="text-sm text-text-secondary mb-3">Query: "{searchResults.query}"</p>
+                  
+                  {searchResults.globalResults.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-foreground mb-2">Found Users:</h4>
+                      <ul className="space-y-1">
+                        {searchResults.globalResults.map(user => (
+                          <li key={user.id} className="text-sm text-text-secondary">
+                            {user.name} (ID: {user.id})
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={() => setSearchResults(null)}
+                    className="mt-3 text-sm text-primary hover:text-primary/80"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
+
+              {/* Whiteboard Canvas */}
+              {isUnlocked && (
+                <WhiteboardCanvas
+                  notes={canvasNotes}
+                  connections={[]}
+                  onUpdateNote={handleUpdateNote}
+                  onDeleteNote={handleDeleteNote}
+                  onMoveNote={handleMoveNote}
+                  selectedNoteId={null}
+                  onSelectNote={() => {}}
+                  onConnectNotes={() => {}}
+                  scale={scale}
+                  viewMode="grid"
+                  onCanvasClick={() => {}}
+                />
+              )}
 
               {/* Floating Create Button */}
-              <button
-                onClick={() => handleCreateNote({})}
-                className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90"
-                title="Create note"
-              >
-                <Icon name="Plus" size={24} />
-              </button>
-              <PasswordModal
-                open={passwordModalOpen}
-                onClose={() => setPasswordModalOpen(false)}
-                onSuccess={handlePasswordSuccess}
-                isSet={passwordIsSet}
-                error={passwordError}
-              />
+              {isUnlocked && (
+                <button
+                  onClick={handleCreateNote}
+                  className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors z-30"
+                  title="Create note"
+                >
+                  <Icon name="Plus" size={24} />
+                </button>
+              )}
+
+              {/* Error display */}
+              {error && (
+                <div className="absolute bottom-4 left-4 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg z-20">
+                  {error}
+                </div>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Password Modal */}
+        <WhiteboardPasswordModal
+          open={showPasswordModal}
+          onClose={handlePasswordModalClose}
+        />
       </div>
     </DndProvider>
   );
