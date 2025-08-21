@@ -48,14 +48,14 @@ const GoogleSearch = () => {
       </button>
 
       {/* Search bar - animates to sticky top on submit */}
-      <div className={`${submitted ? 'fixed top-0 left-0 right-0 z-20 bg-background/95 backdrop-blur border-b border-border' : 'flex flex-col items-center justify-center'} transition-all`}> 
+       <div className={`${submitted ? 'fixed top-0 left-0 right-0 z-20 bg-background/95 backdrop-blur border-b border-border' : 'flex flex-col items-center justify-center min-h-screen'} transition-all`}>
         {!submitted && (
           <div className="text-center mb-8 pt-24">
             <h1 className="text-5xl font-bold text-primary mb-2">Connect your thoughts</h1>
             <p className="text-lg text-text-secondary">Search across posts, people, ideas, and more</p>
           </div>
         )}
-        <div className={`mx-auto ${submitted ? 'max-w-3xl p-3' : 'max-w-xl'}`}>
+        <div className={`mx-auto w-full ${submitted ? 'px-4 py-3' : 'px-6'}`}>
           <form onSubmit={handleSubmit}>
             <input
               type="search"
