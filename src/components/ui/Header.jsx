@@ -7,6 +7,8 @@ import Input from './Input';
 import { useAuth } from '../../context/AuthContext';
 import { extractUserId } from '@/src/utils/jwt';
 import { fetchUserBasic, getAuthToken } from '@/src/utils/api';
+import { fetchNotifications, acceptConnection, rejectConnection, getConnectionCount } from '@/src/utils/api';
+import { useToast } from '@/src/context/ToastContext';
 
 const USER_BASIC_CACHE_KEY = 'user_basic_v1';
 
@@ -19,6 +21,11 @@ const Header = () => {
   const { isAuthenticated, logout, openAuthModal } = useAuth();
   const [userName, setUserName] = React.useState('');
   const [loadingUser, setLoadingUser] = React.useState(false);
+  const [showNotifs, setShowNotifs] = React.useState(false);
+  const [notifications, setNotifications] = React.useState([]);
+  const [unreadIds, setUnreadIds] = React.useState(new Set());
+  const [connectionCount, setConnectionCount] = React.useState(0);
+  const { showToast } = useToast();
 
   React.useEffect(() => {
     const handleClickOutside = (e) => {
@@ -29,6 +36,28 @@ const Header = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showProfileMenu]);
+
+  // Poll notifications every 5 minutes
+  React.useEffect(() => {
+    let timer;
+    const load = async () => {
+      try {
+        const token = getAuthToken();
+        if (!token) return;
+        const list = await fetchNotifications({ token });
+        setNotifications(list);
+        // update unread by adding new ids
+        setUnreadIds((prev) => {
+          const s = new Set(prev);
+          for (const n of list) if (!s.has(n.id)) s.add(n.id);
+          return s;
+        });
+      } catch {}
+    };
+    load();
+    timer = window.setInterval(load, 5 * 60 * 1000);
+    return () => timer && window.clearInterval(timer);
+  }, [isAuthenticated]);
 
   const navigationItems = [
     { label: 'Home', path: '/', icon: 'Home' },
@@ -58,8 +87,18 @@ const Header = () => {
     const uid = extractUserId(token);
     if (!token || !uid) {
       setUserName('');
+      setConnectionCount(0);
       return;
     }
+
+    let cancelled = false;
+
+    const updateConnectionCount = async () => {
+      try {
+        const cnt = await getConnectionCount({ userId: uid, token });
+        if (!cancelled) setConnectionCount(cnt || 0);
+      } catch {}
+    };
 
     // Try cache first to avoid fetch on every page navigation
     try {
@@ -68,12 +107,13 @@ const Header = () => {
         const parsed = JSON.parse(cached);
         if (parsed && parsed.userId === uid && parsed.name) {
           setUserName(parsed.name);
+          // fetch count in background
+          updateConnectionCount();
           return; // cache hit; skip fetch
         }
       }
     } catch {}
 
-    let cancelled = false;
     (async () => {
       try {
         setLoadingUser(true);
@@ -83,6 +123,8 @@ const Header = () => {
           try {
             sessionStorage.setItem(USER_BASIC_CACHE_KEY, JSON.stringify({ userId: uid, name: data?.name || '' }));
           } catch {}
+          // update count after setting name
+          await updateConnectionCount();
         }
       } catch {
         if (!cancelled) setUserName('');
@@ -129,6 +171,68 @@ const Header = () => {
 
         {/* Right: Profile */}
         <div className="flex items-center space-x-2">
+          <div className="relative">
+            <Button variant="ghost" size="icon" onClick={async () => {
+              setShowNotifs((s)=>!s);
+              if (!showNotifs) {
+                try {
+                  const token = getAuthToken();
+                  const list = await fetchNotifications({ token });
+                  setNotifications(Array.isArray(list) ? list : []);
+                  // Mark as read when opening
+                  setUnreadIds(new Set());
+                } catch {}
+              }
+            }}>
+              <Icon name="Bell" size={20} />
+            </Button>
+            {unreadIds.size > 0 && (
+              <span className="absolute -top-1 -right-1 bg-destructive text-white text-[10px] leading-none px-1.5 py-0.5 rounded-full">
+                {unreadIds.size}
+              </span>
+            )}
+            {showNotifs && (
+              <div className="absolute right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-modal z-[10000]">
+                <div className="p-3 border-b border-border font-semibold text-sm">Notifications</div>
+                <div className="max-h-80 overflow-auto">
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-sm text-text-secondary">No notifications</div>
+                  ) : notifications.map((n) => (
+                    <div key={n.id} className="p-3 border-b border-border text-sm flex items-start gap-2">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                        <Icon name="User" size={14} />
+                      </div>
+                      <div>
+                        <div className="font-medium">{n.username}</div>
+                        <div className="text-text-secondary">{n.type === 'CONNECTION_REQUEST' ? 'Connection request' : n.type}</div>
+                        {n.content && <div className="text-xs mt-1">{n.content}</div>}
+                        {n.type === 'CONNECTION_REQUEST' && (
+                          <div className="flex gap-2 mt-2">
+                            <Button size="sm" variant="default" onClick={async ()=>{
+                              try {
+                                const token = getAuthToken();
+                                await acceptConnection({ targetUserId: n.userId, token });
+                                setNotifications(prev => prev.filter(x => x.id !== n.id));
+                                showToast('Connection accepted', 'success');
+                              } catch (e) { showToast(e?.message || 'Failed to accept', 'error'); }
+                            }}>Accept</Button>
+                            <Button size="sm" variant="outline" onClick={async ()=>{
+                              try {
+                                const token = getAuthToken();
+                                await rejectConnection({ targetUserId: n.userId, token });
+                                setNotifications(prev => prev.filter(x => x.id !== n.id));
+                                showToast('Connection rejected', 'success');
+                              } catch (e) { showToast(e?.message || 'Failed to reject', 'error'); }
+                            }}>Reject</Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           {!isAuthenticated && (
             <>
               <Button variant="secondary" onClick={openAuthModal}>Log In</Button>
@@ -152,7 +256,7 @@ const Header = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-foreground">{userName || 'User'}</h3>
-                      <p className="text-sm text-text-secondary">{loadingUser ? 'Loading...' : ''}</p>
+                      <p className="text-sm text-text-secondary">{loadingUser ? 'Loading...' : `${connectionCount} connections`}</p>
                     </div>
                   </div>
                 </div>

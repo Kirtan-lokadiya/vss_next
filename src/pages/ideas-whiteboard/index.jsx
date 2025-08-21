@@ -24,6 +24,7 @@ const IdeasWhiteboard = () => {
   const [pendingNoteData, setPendingNoteData] = useState(null);
   const [userPassword, setUserPassword] = useState('');
   const { token } = useAuth();
+  const [viewportWidth, setViewportWidth] = useState(1024);
 
   // Debounce timers per noteId for saving
   const saveTimersRef = useRef(new Map());
@@ -56,6 +57,33 @@ const IdeasWhiteboard = () => {
     })();
   }, [token]);
 
+  // Track viewport width for responsive grid placement
+  useEffect(() => {
+    const init = () => {
+      if (typeof window !== 'undefined') setViewportWidth(window.innerWidth || 1024);
+    };
+    init();
+    if (typeof window !== 'undefined') {
+      const onResize = () => setViewportWidth(window.innerWidth || 1024);
+      window.addEventListener('resize', onResize);
+      return () => window.removeEventListener('resize', onResize);
+    }
+  }, []);
+
+  // Compute responsive grid position for an index
+  const getGridPosition = useCallback((idx) => {
+    const NOTE_W = 256; // px (w-64)
+    const NOTE_H = 192; // px (h-48)
+    const GAP = 24;     // px
+    const usableWidth = Math.max(320, viewportWidth - GAP * 2);
+    const perRow = Math.max(1, Math.floor(usableWidth / (NOTE_W + GAP)));
+    const col = idx % perRow;
+    const row = Math.floor(idx / perRow);
+    const x = GAP + col * (NOTE_W + GAP);
+    const y = GAP + row * (NOTE_H + GAP);
+    return { x, y };
+  }, [viewportWidth]);
+
   // Load notes from backend after unlock
   const loadNotes = useCallback(async () => {
     if (!token) return;
@@ -79,15 +107,17 @@ const IdeasWhiteboard = () => {
 
     // Normal success (including empty notes list)
     const list = res.data || [];
-    const mapped = await Promise.all(list.map(async (n) => {
+    const mapped = await Promise.all(list.map(async (n, idx) => {
       const properties = n.properties || {};
+      // Fallback responsive grid position if properties missing to avoid overlap
+      const fallbackPos = getGridPosition(idx);
       return {
         id: n.noteId || n.id,
         title: `Note #${n.noteId || n.id}`,
         content: n.content,
         color: properties.color || '#ffffff',
         createdAt: new Date().toISOString(),
-        position: { x: properties.x ?? 100, y: properties.y ?? 100 },
+        position: { x: (properties.x ?? fallbackPos.x), y: (properties.y ?? fallbackPos.y) },
         zIndex: properties.z ?? 1,
         size: { width: properties.width ?? 200, height: properties.height ?? 100 },
         comments: [],
@@ -183,22 +213,19 @@ const IdeasWhiteboard = () => {
     }
   }, [pendingNoteData, token, userPassword, loadNotes]);
 
-  // Helper: compute next position in a simple grid to avoid overlap
+  // Helper: compute next position in a responsive grid to avoid overlap
   const computeNextPosition = useCallback(() => {
-    const baseX = 100, baseY = 100, step = 48, perRow = 6;
     const idx = notes.length;
-    const col = idx % perRow;
-    const row = Math.floor(idx / perRow);
-    return { x: baseX + col * step, y: baseY + row * step };
-  }, [notes.length]);
+    return getGridPosition(idx);
+  }, [notes.length, getGridPosition]);
 
   const handleCreateNote = useCallback(async (noteData = {}) => {
     if (!token || !userPassword) return;
 
-    // Compute next position
-    const baseX = 100, baseY = 100, step = 48, perRow = 6;
-    const idx = notes.length;
-    const nextPos = { x: baseX + (idx % perRow) * step, y: baseY + Math.floor(idx / perRow) * step };
+    // Compute next position (responsive)
+    const nextPos = computeNextPosition();
+    const currentMaxZ = notes.reduce((m, n) => Math.max(m, Number(n.zIndex || n.z || 1)), 1);
+    const nextZ = currentMaxZ + 1;
 
     // Optimistic insert
     const tempId = `temp-${Date.now()}`;
@@ -209,7 +236,7 @@ const IdeasWhiteboard = () => {
       color: 'yellow',
       createdAt: new Date().toISOString(),
       position: nextPos,
-      zIndex: 1,
+      zIndex: nextZ,
       comments: [],
       raw: {},
     };
@@ -221,7 +248,7 @@ const IdeasWhiteboard = () => {
     // POST to create on server
     const payload = {
       content: optimistic.content,
-      properties: { x: nextPos.x, y: nextPos.y, z: 5, color: 'yellow', height: 100, width: 200 },
+      properties: { x: nextPos.x, y: nextPos.y, z: nextZ, color: 'yellow', height: 100, width: 200 },
     };
     const created = await createNote(token, payload);
     if (created?.success && created.note) {
@@ -236,10 +263,24 @@ const IdeasWhiteboard = () => {
     }
   }, [token, userPassword, notes.length]);
 
-  // Do not PUT on drag anymore; only update UI state
-  const handleMoveNote = useCallback(async (noteId, newPosition) => {
-    setNotes(prev => prev.map(note => (note.id === noteId ? { ...note, position: newPosition } : note)));
-  }, []);
+  // // Do not PUT on drag anymore; only update UI state
+  // const handleMoveNote = useCallback(async (noteId, newPosition) => {
+  //   setNotes(prev => prev.map(note => (note.id === noteId ? { ...note, position: newPosition } : note)));
+  //   // Debounce SAVE of position by 2s
+  //   const timers = saveTimersRef.current;
+  //   if (timers.has(noteId)) {
+  //     clearTimeout(timers.get(noteId));
+  //   }
+  //   const to = setTimeout(async () => {
+  //     try {
+  //       if (!token) return;
+  //       await updateNote(token, noteId, { x: newPosition.x, y: newPosition.y });
+  //     } catch (e) {
+  //       console.error('Failed to save position', e);
+  //     }
+  //   }, 2000);
+  //   timers.set(noteId, to);
+  // }, [token]);
 
   const handleSelectNote = useCallback((noteId) => {
     setSelectedNoteId(noteId);
@@ -261,11 +302,23 @@ const IdeasWhiteboard = () => {
 
   // Save edited content to backend when StickyNote triggers save
   const handleSaveNoteContent = useCallback(async (noteId, updates) => {
-    const tokenToUse = token;
-    await updateNoteContent(tokenToUse, noteId, { title: updates.title, content: updates.content });
-    // Reflect saved values in state
+    // Optimistically update UI
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, title: updates.title, content: updates.content } : n));
     setFilteredNotes(prev => prev.map(n => n.id === noteId ? { ...n, title: updates.title, content: updates.content } : n));
+    // Debounce content/title save by 2s
+    const timers = saveTimersRef.current;
+    if (timers.has(`content-${noteId}`)) {
+      clearTimeout(timers.get(`content-${noteId}`));
+    }
+    const to = setTimeout(async () => {
+      try {
+        if (!token) return;
+        await updateNoteContent(token, noteId, { title: updates.title, content: updates.content });
+      } catch (e) {
+        console.error('Failed to save content', e);
+      }
+    }, 2000);
+    timers.set(`content-${noteId}`, to);
   }, [token]);
 
   const handleDeleteNote = useCallback(async (noteId) => {
@@ -314,7 +367,7 @@ const IdeasWhiteboard = () => {
                 connections={connections}
                 onUpdateNote={handleSaveNoteContent}
                 onDeleteNote={handleDeleteNote}
-                onMoveNote={handleMoveNote}
+                // onMoveNote={handleMoveNote}
                 selectedNoteId={null}
                 onSelectNote={() => {}}
                 onConnectNotes={() => {}}

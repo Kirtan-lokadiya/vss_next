@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
+import { getAuthToken, getConnectionStatus, sendConnectionRequest, cancelConnection } from '@/src/utils/api';
 
 const NetworkVisualization = ({
   connections,
@@ -20,6 +21,8 @@ const NetworkVisualization = ({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hoveredConnection, setHoveredConnection] = useState(null);
   const [popup, setPopup] = useState(null); // {x,y,connection}
+  const [connectionStatusByUser, setConnectionStatusByUser] = useState({});
+  const [connecting, setConnecting] = useState(false);
 
   const viewModes = [
     { value: 'tree', label: 'Tree View', icon: 'GitBranch' },
@@ -87,6 +90,13 @@ const NetworkVisualization = ({
     onNodeSelect(node);
     if (node && position) {
       setPopupPositionFromSvg(position, node);
+      // fetch connection status lazily
+      const token = getAuthToken();
+      if (token && node?.id) {
+        getConnectionStatus({ targetUserId: node.id, token }).then((status) => {
+          setConnectionStatusByUser(prev => ({ ...prev, [node.id]: status || 'NOT_SEND' }));
+        }).catch(() => {});
+      }
     }
   };
 
@@ -194,7 +204,37 @@ const NetworkVisualization = ({
               {popup.connection.avatar ? <img src={popup.connection.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-primary" />}
               <div><div className="text-sm font-semibold text-foreground">{popup.connection.name}</div></div>
             </div>
-            <div className="flex justify-end"><a href="/profile" className="text-sm text-primary hover:underline">View Profile</a></div>
+            <div className="flex items-center justify-between mt-2">
+              <a href="/profile" className="text-sm text-primary hover:underline">View Profile</a>
+              {(() => {
+                const status = connectionStatusByUser[popup.connection.id] || 'NOT_SEND';
+                if (status === 'PENDING') {
+                  return (
+                    <Button size="sm" variant="outline" disabled={connecting} onClick={async () => {
+                      try {
+                        setConnecting(true);
+                        const token = getAuthToken();
+                        await cancelConnection({ targetUserId: popup.connection.id, token });
+                        setConnectionStatusByUser(prev => ({ ...prev, [popup.connection.id]: 'NOT_SEND' }));
+                      } finally { setConnecting(false); }
+                    }}>Cancel</Button>
+                  );
+                }
+                if (status === 'CONNECT') {
+                  return <span className="text-xs text-success">Connected</span>;
+                }
+                return (
+                  <Button size="sm" variant="default" disabled={connecting} onClick={async () => {
+                    try {
+                      setConnecting(true);
+                      const token = getAuthToken();
+                      await sendConnectionRequest({ targetUserId: popup.connection.id, message: `Hello ${popup.connection.name}`, token });
+                      setConnectionStatusByUser(prev => ({ ...prev, [popup.connection.id]: 'PENDING' }));
+                    } finally { setConnecting(false); }
+                  }}>Connect</Button>
+                );
+              })()}
+            </div>
           </div>
         </div>
       )}

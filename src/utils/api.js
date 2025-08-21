@@ -4,6 +4,8 @@ export const ENDPOINTS = {
   postBase: `${BASE_URL}/api/v1/posts`,
   feedBase: `${BASE_URL}/api/v1/feed`,
   userBase: `${BASE_URL}/api/v1/users`,
+  connectBase: `${BASE_URL}/api/v1/connect`,
+  notificationBase: `${BASE_URL}/api/v1/notification`,
 };
 
 export const getAuthToken = () => {
@@ -177,4 +179,90 @@ export const updateUserProfile = async ({ profile, token }) => {
   const data = await getJsonSafe(res);
   ensureOk(res, data);
   return data;
+};
+
+// --- Connection APIs ---
+export const getConnectionStatus = async ({ targetUserId, token }) => {
+  const res = await fetch(`${ENDPOINTS.connectBase}/status/${encodeURIComponent(targetUserId)}`, {
+    headers: authHeaders(token),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data ?? {});
+  return data; // e.g., "NOT_SEND", "PENDING", "REJECTED", "CONNECT"
+};
+
+export const sendConnectionRequest = async ({ targetUserId, message, token }) => {
+  const res = await fetch(`${ENDPOINTS.connectBase}/request`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ targetUserId, message }),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data ?? {});
+  return true;
+};
+
+export const acceptConnection = async ({ targetUserId, token }) => {
+  const res = await fetch(`${ENDPOINTS.connectBase}/accept`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ targetUserId }),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data ?? {});
+  return true;
+};
+
+export const cancelConnection = async ({ targetUserId, token }) => {
+  const res = await fetch(`${ENDPOINTS.connectBase}/cancel`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ targetUserId }),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data ?? {});
+  return true;
+};
+
+export const rejectConnection = async ({ targetUserId, token }) => {
+  const res = await fetch(`${ENDPOINTS.connectBase}/reject`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ targetUserId }),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data ?? {});
+  return true;
+};
+
+export const deleteConnection = async ({ targetUserId, token }) => {
+  const res = await fetch(`${ENDPOINTS.connectBase}/delete`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ targetUserId }),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data ?? {});
+  return true;
+};
+
+export const getConnectionCount = async ({ userId, token }) => {
+  const res = await fetch(`${ENDPOINTS.connectBase}/count/${encodeURIComponent(userId)}`, {
+    headers: authHeaders(token),
+  });
+  // Endpoint returns number (not JSON)
+  const text = await res.text();
+  if (!res.ok) throw new Error(text || 'Failed to fetch connection count');
+  const num = Number(text);
+  return Number.isNaN(num) ? 0 : num;
+};
+
+// --- Notifications API ---
+export const fetchNotifications = async ({ token }) => {
+  const res = await fetch(`${ENDPOINTS.notificationBase}`, {
+    headers: authHeaders(token),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data ?? {});
+  return Array.isArray(data) ? data : [];
 };
