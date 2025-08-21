@@ -2,6 +2,7 @@ import { Provider } from 'react-redux'
 import { AuthProvider } from '../src/context/AuthContext'
 import { ToastProvider } from '../src/context/ToastContext'
 import { PasskeyProvider } from '../src/context/PasskeyContext'
+import { WhiteboardProvider } from '../src/context/WhiteboardContext'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import ErrorBoundary from '../src/components/ErrorBoundary'
@@ -37,12 +38,14 @@ function MyApp({ Component, pageProps }) {
         <AuthProvider>
           <ToastProvider>
             <PasskeyProvider>
-              <DndProvider backend={HTML5Backend}>
-                <RequireAuth>
-                  <Component {...pageProps} />
-                </RequireAuth>
-                <AuthModal />
-              </DndProvider>
+              <WhiteboardProvider>
+                <DndProvider backend={HTML5Backend}>
+                  <RequireAuth>
+                    <Component {...pageProps} />
+                  </RequireAuth>
+                  <AuthModal />
+                </DndProvider>
+              </WhiteboardProvider>
             </PasskeyProvider>
           </ToastProvider>
         </AuthProvider>
