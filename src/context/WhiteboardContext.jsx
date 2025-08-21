@@ -81,7 +81,7 @@ export const WhiteboardProvider = ({ children }) => {
   /**
    * Setup passkey with password 7510
    */
-  const setupPasskey = useCallback(async (password = "7510") => {
+  const setupPasskey = useCallback(async (password) => {
     if (!token) {
       throw new Error('No authentication token available');
     }
@@ -92,7 +92,8 @@ export const WhiteboardProvider = ({ children }) => {
     try {
       // Call API to set passkey
       const result = await setPasskey(token, password);
-      
+      console.log(result);
+
       if (!result.success && !result.alreadySet) {
         throw new Error(result.error || 'Failed to setup passkey');
       }

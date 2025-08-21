@@ -21,7 +21,7 @@ const getStoredToken = () => {
  * @param {string} password - Password (should be "7510")
  * @returns {Promise<Object>} API response
  */
-export const setPasskey = async (token, password = "7510") => {
+export const setPasskey = async (token, password ) => {
   try {
     const url = `${SECURITY_BASE}/passkeys?password=${encodeURIComponent(password)}`;
     const response = await fetch(url, {
