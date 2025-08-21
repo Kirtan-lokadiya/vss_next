@@ -2,11 +2,19 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Icon from '@/src/components/AppIcon';
 import NetworkVisualization from '@/src/pages/connection-network-tree/components/NetworkVisualization';
+import { getAuthToken } from '@/src/utils/api';
 
 const GoogleSearch = () => {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     const handleEsc = (e) => {
@@ -14,26 +22,66 @@ const GoogleSearch = () => {
         router.back();
       }
     };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', handleEsc);
+      return () => window.removeEventListener('keydown', handleEsc);
+    }
   }, [router]);
 
   const peopleResults = useMemo(() => {
-    // simple mock connections for the mini graph
-    return [
-      { id: 1, name: 'Alice Sharma', interactions: 10, avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=80&h=80&fit=crop&crop=face', mutualConnections: [] },
-      { id: 2, name: 'Rohit Patel', interactions: 8, avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face', mutualConnections: [] },
-      { id: 3, name: 'Nisha Verma', interactions: 15, avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=80&h=80&fit=crop&crop=face', mutualConnections: [] },
-      { id: 4, name: 'Karan Singh', interactions: 4, avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&crop=face', mutualConnections: [] },
-      { id: 5, name: 'Meera Rao', interactions: 6, avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=80&h=80&fit=crop&crop=face', mutualConnections: [] },
-    ];
-  }, []);
+    // Transform API results to graph format
+    return searchResults.map((user, index) => ({
+      id: user.id,
+      name: user.name,
+      interactions: Math.floor(Math.random() * 20) + 1, // Random interaction count for demo
+      avatar: user.picture && user.picture !== 'None' ? user.picture : null,
+      mutualConnections: []
+    }));
+  }, [searchResults]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    if (!query.trim() || typeof window === 'undefined') return;
     setSubmitted(true);
+    setLoading(true);
+    
+    try {
+      const token = getAuthToken();
+      const apiUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321'}/api/v1/privates/`;
+      console.log('Environment BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL);
+      console.log('Final API URL:', apiUrl);
+      console.log('Token:', token ? 'Present' : 'Missing');
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ content:"hello world" })
+      });
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('Error response body:', errorText);
+        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setSearchResults(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (!isClient) {
+    return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
+  }
 
   return (
     <div className={`min-h-screen bg-background ${submitted ? 'pt-20' : ''} relative`}>
@@ -79,20 +127,32 @@ const GoogleSearch = () => {
             <button className="px-2 py-3 text-sm text-text-secondary" disabled>Ideas</button>
           </div>
 
-          {/* People - Dummy Graph only */}
+          {/* People - Real API Graph */}
           <div className="mt-6">
             <div className="bg-card border border-border rounded-2xl shadow-card p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-3">People related to "{query}"</h3>
-              <NetworkVisualization
-                connections={peopleResults}
-                selectedNode={null}
-                onNodeSelect={() => {}}
-                viewMode={'circular'}
-                onViewModeChange={() => {}}
-                className="h-[420px]"
-                showControls={false}
-                showLegend={false}
-              />
+              <h3 className="text-sm font-semibold text-foreground mb-3">
+                People related to "{query}" ({peopleResults.length} results)
+              </h3>
+              {loading ? (
+                <div className="h-[420px] flex items-center justify-center">
+                  <div className="text-text-secondary">Searching...</div>
+                </div>
+              ) : peopleResults.length === 0 ? (
+                <div className="h-[420px] flex items-center justify-center">
+                  <div className="text-text-secondary">No people found for "{query}"</div>
+                </div>
+              ) : (
+                <NetworkVisualization
+                  connections={peopleResults}
+                  selectedNode={null}
+                  onNodeSelect={() => {}}
+                  viewMode={'circular'}
+                  onViewModeChange={() => {}}
+                  className="h-[420px]"
+                  showControls={false}
+                  showLegend={false}
+                />
+              )}
             </div>
           </div>
         </div>

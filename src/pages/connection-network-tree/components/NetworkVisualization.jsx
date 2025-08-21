@@ -139,7 +139,7 @@ const NetworkVisualization = ({
             return (
               <g key="user-node">
                 <circle cx={up.x} cy={up.y} r={24} fill="#0A66C2" stroke="#FFFFFF" strokeWidth={3} />
-                <text x={up.x} y={up.y + 40} textAnchor="middle" className="text-xs fill-foreground">You</text>
+                <text x={up.x} y={up.y + 40} textAnchor="middle" className="text-xs fill-foreground">Idea</text>
               </g>
             );
           })()}
