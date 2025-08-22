@@ -122,7 +122,7 @@ class SyncManager {
           updatedCount++;
         } else if (sendNoteId > 0) {
           // Update existing note to clear modifyFlag
-          await updateNote(sendNoteId, { modifyFlag: false });
+          await updateNote(sendNoteId, { modifyFlag: 0 });
           updatedCount++;
         }
       }

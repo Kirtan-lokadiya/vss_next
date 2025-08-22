@@ -169,7 +169,7 @@ export const WhiteboardProvider = ({ children }) => {
       // Verify password against stored hash
       const verifyResult = await verifyPassword(password);
       if (!verifyResult.success || !verifyResult.valid) {
-        throw new Error('Invalid password');
+        return { success: false, message: 'Invalid password, try again' }; // ✅ no throw
       }
 
       // Load all notes from API
@@ -200,7 +200,7 @@ export const WhiteboardProvider = ({ children }) => {
           },
           sendNoteId: apiNote.noteId || apiNote.id,
           realNoteId: apiNote.noteId || apiNote.id,
-          modifyFlag: false
+          modifyFlag: 0
         };
 
         await storeNote(note);
@@ -261,7 +261,7 @@ export const WhiteboardProvider = ({ children }) => {
         },
         sendNoteId: negativeId,
         realNoteId: null,
-        modifyFlag: true
+        modifyFlag: 1
       };
 
       // Store in IndexedDB
@@ -295,7 +295,7 @@ export const WhiteboardProvider = ({ children }) => {
       // Update state
       setNotes(prev => prev.map(note =>
         note.noteId === noteId
-          ? { ...note, content, modifyFlag: true }
+          ? { ...note, content, modifyFlag: 1 }
           : note
       ));
 
@@ -324,7 +324,7 @@ export const WhiteboardProvider = ({ children }) => {
       // Update state
       setNotes(prev => prev.map(note =>
         note.noteId === noteId
-          ? { ...note, properties, modifyFlag: true }
+          ? { ...note, properties, modifyFlag: 1 }
           : note
       ));
 
@@ -346,10 +346,10 @@ export const WhiteboardProvider = ({ children }) => {
     try {
       // For negative IDs, just remove from IndexedDB
       if (noteId < 0) {
-        await updateNote(noteId, { isDeleted: true, modifyFlag: true });
+        await updateNote(noteId, { isDeleted: true, modifyFlag: 1 });
       } else {
         // For positive IDs, mark as deleted and sync will handle it
-        await updateNote(noteId, { isDeleted: true, modifyFlag: true });
+        await updateNote(noteId, { isDeleted: true, modifyFlag: 1 });
       }
 
       // Update state

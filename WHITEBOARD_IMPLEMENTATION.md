@@ -25,7 +25,7 @@ The whiteboard has been completely refactored to implement the new ideas page lo
     properties: { x, y, z, color, height, width, empty },
     sendNoteId: -1,
     realNoteId: 452, // Set after sync
-    modifyFlag: true // Indicates need for sync
+    modifyFlag: 1 // Indicates need for sync (1 = true, 0 = false)
   }
   ```
 
@@ -45,7 +45,7 @@ The whiteboard has been completely refactored to implement the new ideas page lo
 - **1-Minute Interval**: Automatically syncs modified notes every minute
 - **Sync API**: `/api/v1/notes/user-notes` POST with modified notes
 - **Response Mapping**: Maps sendNoteId to realNoteId and updates IndexedDB
-- **Flag Management**: Sets modifyFlag to false after successful sync
+- **Flag Management**: Sets modifyFlag to 0 after successful sync
 
 ### 6. Search Integration
 - **Local Search**: Searches IndexedDB notes by content

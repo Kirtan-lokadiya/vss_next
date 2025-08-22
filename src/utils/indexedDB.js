@@ -184,7 +184,7 @@ export const updateNote = async (noteId, updates) => {
           const updatedNote = { 
             ...existingNote, 
             ...updates, 
-            modifyFlag: true 
+            modifyFlag: 1 
           };
           
           const putRequest = store.put(updatedNote);
@@ -211,7 +211,7 @@ export const updateNote = async (noteId, updates) => {
   }
 };
 
-// Get notes with modifyFlag = true
+// Get notes with modifyFlag = 1
 export const getModifiedNotes = async () => {
   try {
     const db = await initDB();
@@ -220,7 +220,7 @@ export const getModifiedNotes = async () => {
     const index = store.index('modifyFlag');
     
     return new Promise((resolve, reject) => {
-      const request = index.getAll(IDBKeyRange.only(true)); 
+      const request = index.getAll(IDBKeyRange.only(1)); 
       
       request.onsuccess = () => {
         resolve({ success: true, notes: request.result });
@@ -259,7 +259,7 @@ export const updateNoteWithRealId = async (sendNoteId, realNoteId) => {
               noteId: realNoteId,
               sendNoteId: realNoteId,
               realNoteId: realNoteId,
-              modifyFlag: false
+              modifyFlag: 0
             };
             
             const putRequest = store.put(updatedNote);
