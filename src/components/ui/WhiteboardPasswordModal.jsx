@@ -15,6 +15,7 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
       setPassword('');
       setError('');
       setLoading(false);
+      // If password is already set, always use unlock mode
       setIsSetupMode(!isPasswordSet);
     }
   }, [open, isPasswordSet]);
@@ -126,17 +127,19 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
           </button>
         </form>
 
-        {/* Toggle between setup and unlock modes */}
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={toggleMode}
-            className="text-sm text-primary hover:text-primary/80 transition-colors"
-            disabled={loading}
-          >
-            {isSetupMode ? 'Already have a password? Unlock instead' : 'Need to setup security? Setup instead'}
-          </button>
-        </div>
+        {/* Toggle between setup and unlock modes - only show when password is not set */}
+        {!isPasswordSet && (
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={toggleMode}
+              className="text-sm text-primary hover:text-primary/80 transition-colors"
+              disabled={loading}
+            >
+              {isSetupMode ? 'Already have a password? Unlock instead' : 'Need to setup security? Setup instead'}
+            </button>
+          </div>
+        )}
 
         {/* Info about password */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
