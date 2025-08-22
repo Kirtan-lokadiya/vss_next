@@ -70,7 +70,7 @@ export const PasskeyProvider = ({ children }) => {
         
         return { success: true, passkey: passkeyData, isSet: true };
       } else {
-        throw new Error('Unexpected response format from server');
+        return { success: false, message: 'Unexpected response format from server' };
       }
     } catch (error) {
       console.error('Error checking passkey:', error);
@@ -115,7 +115,7 @@ console.log(response);
         return { success: true, passkey: passkeyData };
       } else {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to set password');
+        return { success: false, message: errorData.message || 'Failed to set password' };
       }
     } catch (error) {
       console.error('Error setting password:', error);

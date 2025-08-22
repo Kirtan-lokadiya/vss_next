@@ -65,7 +65,9 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || 'Login failed');
+      if (!res.ok) {
+        return { success: false, message: data?.message || 'Login failed' };
+      }
       handleAuthResponse(data);
       return { success: true };
     } catch (err) {
@@ -120,7 +122,9 @@ export const AuthProvider = ({ children }) => {
         const errorMsg = data?.errors?.message || 'Verification failed';
         return { success: false, message: errorMsg };
       }
-      if (!res.ok) throw new Error((data?.message) || 'Verification failed');
+      if (!res.ok) {
+        return { success: false, message: data?.message || 'Verification failed' };
+      }
       // If backend returns just the token string
       if (typeof data === 'string' && data.length > 20) {
         persistToken(data);
