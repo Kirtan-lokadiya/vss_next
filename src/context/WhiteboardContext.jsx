@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useAuth } from './AuthContext';
 import {
   initDB,
+  checkPasswordHashExists,
   storePasswordHash,
   verifyPassword,
   getAllNotes,
@@ -91,9 +92,10 @@ export const WhiteboardProvider = ({ children }) => {
 
     try {
       // First check if password hash already exists in IndexedDB
-      const { success: hashExists } = await storePasswordHash(password);
-      console.log("hashExists", hashExists);
-      if (hashExists) {
+      const hashCheckResult = await checkPasswordHashExists();
+      console.log("hashCheckResult", hashCheckResult);
+      
+      if (hashCheckResult.success && hashCheckResult.exists) {
         // Password hash already exists, just verify it matches
         const verifyResult = await verifyPassword(password);
         if (verifyResult.success && verifyResult.valid) {
@@ -103,6 +105,8 @@ export const WhiteboardProvider = ({ children }) => {
             alreadySet: true,
             message: 'Password already set and verified'
           };
+        } else {
+          throw new Error('Password verification failed - incorrect password');
         }
       }
       console.log("Password is    ", password);
