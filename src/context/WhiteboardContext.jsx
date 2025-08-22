@@ -349,33 +349,6 @@ export const WhiteboardProvider = ({ children }) => {
   }, [isUnlocked]);
 
   /**
-   * Delete note
-   */
-  const deleteNote = useCallback(async (noteId) => {
-    if (!isUnlocked) {
-      return { success: false, message: 'Whiteboard is locked' };
-    }
-
-    try {
-      // For negative IDs, just remove from IndexedDB
-      if (noteId < 0) {
-        await updateNote(noteId, { isDeleted: true, modifyFlag: 1 });
-      } else {
-        // For positive IDs, mark as deleted and sync will handle it
-        await updateNote(noteId, { isDeleted: true, modifyFlag: 1 });
-      }
-
-      // Update state
-      setNotes(prev => prev.filter(note => note.noteId !== noteId));
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error deleting note:', error);
-      return { success: false, message: error.message };
-    }
-  }, [isUnlocked]);
-
-  /**
    * Search notes
    */
   const searchNotesLocal = useCallback(async (query) => {
@@ -470,7 +443,6 @@ export const WhiteboardProvider = ({ children }) => {
     createNote,
     updateNoteContent,
     updateNotePosition,
-    deleteNote,
     searchNotes: searchNotesLocal,
     searchNoteById: searchNoteByIdRemote,
     forceSync: forceSyncNow,

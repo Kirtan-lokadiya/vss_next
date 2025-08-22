@@ -260,7 +260,7 @@ export const updateNoteWithRealId = async (sendNoteId, realNoteId) => {
               noteId: realNoteId,
               sendNoteId: realNoteId,
               realNoteId: realNoteId,
-              modifyFlag: 0
+              // modifyFlag: 0
             };
             
             const putRequest = store.put(updatedNote);
@@ -348,7 +348,7 @@ export const generateNegativeId = async () => {
       return -1;
     }
     
-    // Find the lowest negative ID and decrement
+    // Find the lowest negative ID and decrement means every time reeset to 1 if i am not wrong
     const negativeIds = notes
       .map(note => note.noteId)
       .filter(id => id < 0)

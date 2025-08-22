@@ -115,7 +115,7 @@ class SyncManager {
 
       for (const result of syncResults) {
         const { sendNoteId, realNoteId, modifyFlag } = result;
-        const modifyFlagNumber = modifyFlag ? 1 : 0;
+        // const modifyFlagNumber = modifyFlag ? 1 : 0;
         
         if (sendNoteId < 0 && realNoteId > 0) {
           // Update negative ID with real ID
@@ -123,7 +123,7 @@ class SyncManager {
           updatedCount++;
         } else if (sendNoteId > 0) {
           // Update existing note to clear modifyFlag
-          await updateNote(sendNoteId, { modifyFlag: modifyFlagNumber });
+          await updateNote(sendNoteId);
           updatedCount++;
         }
       }
