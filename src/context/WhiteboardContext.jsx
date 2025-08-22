@@ -48,9 +48,23 @@ export const WhiteboardProvider = ({ children }) => {
   const [syncStatus, setSyncStatus] = useState('idle');
   const { token } = useAuth();
 
-  // Initialize IndexedDB on mount
+  // Initialize IndexedDB and check for existing password hash on mount
   useEffect(() => {
-    initDB().catch(console.error);
+    const initialize = async () => {
+      try {
+        await initDB();
+        
+        // Check if password hash already exists
+        const hashCheckResult = await checkPasswordHashExists();
+        if (hashCheckResult.success && hashCheckResult.exists) {
+          setIsPasswordSet(true);
+        }
+      } catch (error) {
+        console.error('Error initializing whiteboard:', error);
+      }
+    };
+    
+    initialize();
   }, []);
 
   // Setup sync manager callbacks
