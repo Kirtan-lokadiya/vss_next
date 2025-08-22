@@ -40,18 +40,26 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
           setIsSetupMode(false);
           setError('');
         } else {
-          // Setup successful, now unlock
+          // Setup successful, now unlock and wait for completion
           await unlockWhiteboard(password);
+          // Only close modal after successful unlock and loadAllNotes completion
           onClose();
         }
       } else {
-        // Unlock mode
+        // Unlock mode - wait for both password verification and loadAllNotes to complete
         await unlockWhiteboard(password);
+        // Only close modal after successful unlock and loadAllNotes completion
         onClose();
       }
     } catch (err) {
       console.error('Password modal error:', err);
-      setError(err.message || 'Authentication failed');
+      // Show user-friendly error messages instead of throwing
+      if (err.message === 'Invalid password' || err.message === 'Wrong password') {
+        setError('Invalid password. Please try again.');
+      } else {
+        setError(err.message || 'Authentication failed. Please try again.');
+      }
+      // Don't close modal - let user try again
     } finally {
       setLoading(false);
     }
