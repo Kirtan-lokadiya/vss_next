@@ -18,7 +18,10 @@ const PasswordSetupPage = () => {
     setError('');
     try {
       const result = await createPasskey(password);
-      if (!result.success) throw new Error(result.message || 'Failed to set password');
+      if (!result.success) {
+        setError(result.message || 'Failed to set password');
+        return;
+      }
       router.replace('/');
     } catch (err) {
       setError(err.message);

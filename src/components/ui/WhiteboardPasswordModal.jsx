@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useWhiteboard } from '../../context/WhiteboardContext';
+import { useToast } from '../../context/ToastContext';
 
 const WhiteboardPasswordModal = ({ open, onClose }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [isSetupMode, setIsSetupMode] = useState(false);
-  
+
   const { setupPasskey, unlockWhiteboard, isPasswordSet } = useWhiteboard();
+  const { showToast } = useToast();
 
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
       setPassword('');
-      setError('');
       setLoading(false);
       // If password is already set, always use unlock mode
       setIsSetupMode(!isPasswordSet);
@@ -22,43 +22,54 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!password.trim()) {
-      setError('Please enter a password');
+      showToast('Please enter a password', 'error');
       return;
     }
 
     setLoading(true);
-    setError('');
 
     try {
       if (isSetupMode) {
         // Setup passkey mode
         const result = await setupPasskey(password);
         
+        if (!result.success) {
+          showToast(result.message || 'Failed to setup password', 'error');
+          return;
+        }
+        
         if (result.alreadySet) {
           // If already set, switch to unlock mode
           setIsSetupMode(false);
-          setError('');
         } else {
           // Setup successful, now unlock and wait for completion
-          await unlockWhiteboard(password);
+          const unlockResult = await unlockWhiteboard(password);
+          if (!unlockResult.success) {
+            showToast(unlockResult.message || 'Failed to unlock whiteboard', 'error');
+            return;
+          }
           // Only close modal after successful unlock and loadAllNotes completion
           onClose();
         }
       } else {
         // Unlock mode - wait for both password verification and loadAllNotes to complete
-        await unlockWhiteboard(password);
+        const unlockResult = await unlockWhiteboard(password);
+        if (!unlockResult.success) {
+          showToast(unlockResult.message || 'Invalid password, please try again', 'error');
+          return;
+        }
         // Only close modal after successful unlock and loadAllNotes completion
         onClose();
       }
     } catch (err) {
       console.error('Password modal error:', err);
-      // Show user-friendly error messages instead of throwing
+      // Show user-friendly error messages as toast
       if (err.message === 'Invalid password' || err.message === 'Wrong password') {
-        setError('Invalid password. Please try again.');
+        showToast('Invalid password. Please try again.', 'error');
       } else {
-        setError(err.message || 'Authentication failed. Please try again.');
+        showToast(err.message || 'Authentication failed. Please try again.', 'error');
       }
       // Don't close modal - let user try again
     } finally {
@@ -68,7 +79,6 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
 
   const toggleMode = () => {
     setIsSetupMode(!isSetupMode);
-    setError('');
   };
 
   if (!open) return null;
@@ -81,8 +91,8 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
             {isSetupMode ? 'Setup Whiteboard Security' : 'Unlock Whiteboard'}
           </h2>
           <p className="text-foreground/80 text-sm">
-            {isSetupMode 
-              ? 'Set up security for your whiteboard notes' 
+            {isSetupMode
+              ? 'Set up security for your whiteboard notes'
               : 'Enter your password to access your notes'
             }
           </p>
@@ -105,14 +115,10 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
             />
           </div>
 
-          {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-              {error}
-            </div>
-          )}
 
-          <button 
-            type="submit" 
+
+          <button
+            type="submit"
             className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             disabled={loading}
           >
@@ -144,7 +150,7 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
         {/* Info about password */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p className="text-blue-700 text-xs">
-            <strong>Security Notice:</strong> Your password is securely hashed and stored locally. 
+            <strong>Security Notice:</strong> Your password is securely hashed and stored locally.
             Notes are encrypted and synced with the server automatically.
           </p>
         </div>

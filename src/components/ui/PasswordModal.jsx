@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { usePasskey } from '../../context/PasskeyContext';
+import { useToast } from '../../context/ToastContext';
 
 const PasswordModal = ({ open, onClose, onSuccess, isSet, error }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { setPassword: createPasskey, checkPasskey } = usePasskey();
+  const { showToast } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -12,7 +14,10 @@ const PasswordModal = ({ open, onClose, onSuccess, isSet, error }) => {
     try {
       if (!isSet) {
         const result = await createPasskey(password);
-        if (!result.success) throw new Error(result.message || 'Failed to set password');
+        if (!result.success) {
+          showToast(result.message || 'Failed to set password', 'error');
+          return;
+        }
         // Set password success - close modal and call success
         const pwd = password;
         setPassword('');
@@ -26,7 +31,8 @@ const PasswordModal = ({ open, onClose, onSuccess, isSet, error }) => {
         // Don't close modal - parent will close it only on success
       }
     } catch (err) {
-      // Only show local errors (like network issues)
+      // Show errors as toast messages
+      showToast(err.message || 'An unexpected error occurred', 'error');
       console.error('Password modal error:', err);
     } finally {
       setLoading(false);

@@ -4,6 +4,7 @@ import Icon from '../AppIcon';
 import Input from './Input';
 import Button from './Button';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 const AuthModal = () => {
   const { authModalOpen, closeAuthModal, login, register, loading } = useAuth();
@@ -12,29 +13,31 @@ const AuthModal = () => {
   const [registerData, setRegisterData] = useState({ firstName: '', lastName: '', email: '', password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState('');
+  const { showToast } = useToast();
 
   if (!authModalOpen) return null;
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     const res = await login(loginData.email, loginData.password);
     if (!res.success) {
-      setError(res.message || 'Login failed');
+      showToast(res.message || 'Login failed', 'error');
+    } else {
+      showToast('Login successful!', 'success');
     }
   };
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     if (registerData.password !== registerData.confirmPassword) {
-      setError('Passwords do not match');
+      showToast('Passwords do not match', 'error');
       return;
     }
     const res = await register(registerData);
     if (!res.success) {
-      setError(res.message || 'Registration failed');
+      showToast(res.message || 'Registration failed', 'error');
+    } else {
+      showToast('Registration successful! Please check your email for verification.', 'success');
     }
   };
 
@@ -66,7 +69,7 @@ const AuthModal = () => {
           </button>
         </div>
 
-        {error && <p className="text-sm text-error text-center">{error}</p>}
+
 
         {activeTab === 'login' ? (
           <form onSubmit={handleLoginSubmit} className="space-y-4">

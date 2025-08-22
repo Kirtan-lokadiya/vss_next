@@ -8,6 +8,7 @@ import WhiteboardPasswordModal from '@/src/components/ui/WhiteboardPasswordModal
 import Icon from '@/src/components/AppIcon';
 import { useAuth } from '@/src/context/AuthContext';
 import { useWhiteboard } from '@/src/context/WhiteboardContext';
+import { useToast } from '@/src/context/ToastContext';
 
 const IdeasWhiteboard = () => {
   const [scale, setScale] = useState(1);
@@ -31,6 +32,7 @@ const IdeasWhiteboard = () => {
     searchNoteById,
     reset
   } = useWhiteboard();
+  const { showToast } = useToast();
 
   // Show password modal when user visits and is authenticated
   useEffect(() => {
@@ -38,6 +40,13 @@ const IdeasWhiteboard = () => {
       setShowPasswordModal(true);
     }
   }, [isAuthenticated, token, isUnlocked, showPasswordModal]);
+  
+  // Close password modal when whiteboard becomes unlocked
+  useEffect(() => {
+    if (isUnlocked && showPasswordModal) {
+      setShowPasswordModal(false);
+    }
+  }, [isUnlocked, showPasswordModal]);
 
   // Reset whiteboard when user logs out
   useEffect(() => {
@@ -72,11 +81,15 @@ const IdeasWhiteboard = () => {
     if (!isUnlocked) return;
 
     try {
-      await createNote('New note');
+      const result = await createNote('New note');
+      if (!result.success) {
+        showToast(result.message || 'Failed to create note', 'error');
+      }
     } catch (error) {
+      showToast(error.message || 'Error creating note', 'error');
       console.error('Error creating note:', error);
     }
-  }, [isUnlocked, createNote]);
+  }, [isUnlocked, createNote, showToast]);
 
   // Handle note content update
   const handleUpdateNote = useCallback(async (noteId, updates) => {
@@ -84,12 +97,16 @@ const IdeasWhiteboard = () => {
 
     try {
       if (updates.content !== undefined) {
-        await updateNoteContent(noteId, updates.content);
+        const result = await updateNoteContent(noteId, updates.content);
+        if (!result.success) {
+          showToast(result.message || 'Failed to update note', 'error');
+        }
       }
     } catch (error) {
+      showToast(error.message || 'Error updating note', 'error');
       console.error('Error updating note:', error);
     }
-  }, [isUnlocked, updateNoteContent]);
+  }, [isUnlocked, updateNoteContent, showToast]);
 
   // Handle note position update
   const handleMoveNote = useCallback(async (noteId, newPosition) => {
@@ -104,23 +121,31 @@ const IdeasWhiteboard = () => {
           x: newPosition.x,
           y: newPosition.y
         };
-        await updateNotePosition(noteId, updatedProperties);
+        const result = await updateNotePosition(noteId, updatedProperties);
+        if (!result.success) {
+          showToast(result.message || 'Failed to move note', 'error');
+        }
       }
     } catch (error) {
+      showToast(error.message || 'Error moving note', 'error');
       console.error('Error moving note:', error);
     }
-  }, [isUnlocked, notes, updateNotePosition]);
+  }, [isUnlocked, notes, updateNotePosition, showToast]);
 
   // Handle note deletion
   const handleDeleteNote = useCallback(async (noteId) => {
     if (!isUnlocked) return;
 
     try {
-      await deleteNote(noteId);
+      const result = await deleteNote(noteId);
+      if (!result.success) {
+        showToast(result.message || 'Failed to delete note', 'error');
+      }
     } catch (error) {
+      showToast(error.message || 'Error deleting note', 'error');
       console.error('Error deleting note:', error);
     }
-  }, [isUnlocked, deleteNote]);
+  }, [isUnlocked, deleteNote, showToast]);
 
   // Handle local search
   const handleSearch = useCallback((query) => {
@@ -135,10 +160,20 @@ const IdeasWhiteboard = () => {
       // First search locally
       const localResults = await searchNotes(query);
       
+      if (!localResults.success) {
+        showToast(localResults.message || 'Failed to search notes', 'error');
+        return;
+      }
+      
       if (localResults.success && localResults.notes.length > 0) {
         // If we have local results, use the first one for global search
         const firstNote = localResults.notes[0];
         const globalResults = await searchNoteById(firstNote.noteId);
+        
+        if (!globalResults.success) {
+          showToast(globalResults.message || 'Failed to perform global search', 'error');
+          return;
+        }
         
         if (globalResults.success) {
           setSearchResults({
@@ -149,9 +184,10 @@ const IdeasWhiteboard = () => {
         }
       }
     } catch (error) {
+      showToast(error.message || 'Error performing global search', 'error');
       console.error('Error performing global search:', error);
     }
-  }, [isUnlocked, searchNotes, searchNoteById]);
+  }, [isUnlocked, searchNotes, searchNoteById, showToast]);
 
   // Transform notes for canvas display
   const canvasNotes = filteredNotes.map(note => ({
