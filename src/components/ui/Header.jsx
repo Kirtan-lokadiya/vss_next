@@ -153,20 +153,17 @@ const Header = () => {
           </Link>
         </div>
 
-        {/* Search Bar centered */}
-        <div className="flex-1 max-w-md mx-4 lg:mx-8">
-          <form onSubmit={handleSearchSubmit} className="relative">
-            <div className="relative">
-              <Icon name="Search" size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary" />
-              <Input
-                type="search"
-                placeholder="Search posts, people, ideas..."
-                onFocus={handleSearchFocus}
-                className="pl-10 pr-4 py-2 w-full border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer"
-                readOnly
-              />
-            </div>
-          </form>
+        {/* Search Icon centered */}
+        <div className="flex-1 flex justify-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/search')}
+            className="w-10 h-10 rounded-full hover:bg-muted"
+            title="Search"
+          >
+            <Icon name="Search" size={20} />
+          </Button>
         </div>
 
         {/* Right: Profile */}
