@@ -141,7 +141,7 @@ export const getNotesPage = async (token, page = 1, size = 5, password = "7510")
  * @param {string} password - Password for decryption
  * @returns {Promise<Object>} All notes data
  */
-export const loadAllNotes = async (token, password = "7510") => {
+export const loadAllNotes = async (token, password ) => {
   try {
     const allNotes = [];
     let page = 1;
