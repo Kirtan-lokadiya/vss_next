@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useWhiteboard } from '../../context/WhiteboardContext';
 
 const WhiteboardPasswordModal = ({ open, onClose }) => {
-  const [password, setPassword] = useState('7510');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isSetupMode, setIsSetupMode] = useState(false);
@@ -12,7 +12,7 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      setPassword('7510');
+      setPassword('');
       setError('');
       setLoading(false);
       setIsSetupMode(!isPasswordSet);
@@ -22,8 +22,8 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (password !== '7510') {
-      setError('Password must be 7510');
+    if (!password.trim()) {
+      setError('Please enter a password');
       return;
     }
 
@@ -88,7 +88,7 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
               id="password"
               type="password"
               className="w-full px-4 py-3 rounded-lg border border-input bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="Enter password (7510)"
+              placeholder="Enter your password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
@@ -133,7 +133,7 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
         {/* Info about password */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p className="text-blue-700 text-xs">
-            <strong>Security Notice:</strong> Your password (7510) is securely hashed and stored locally. 
+            <strong>Security Notice:</strong> Your password is securely hashed and stored locally. 
             Notes are encrypted and synced with the server automatically.
           </p>
         </div>

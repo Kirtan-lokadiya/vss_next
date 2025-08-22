@@ -1,19 +1,19 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import { 
-  initDB, 
-  storePasswordHash, 
-  verifyPassword, 
-  getAllNotes, 
-  storeNote, 
-  updateNote, 
+import {
+  initDB,
+  storePasswordHash,
+  verifyPassword,
+  getAllNotes,
+  storeNote,
+  updateNote,
   generateNegativeId,
-  searchNotes 
+  searchNotes
 } from '../utils/indexedDB';
-import { 
-  setPasskey, 
-  loadAllNotes, 
-  searchNoteById 
+import {
+  setPasskey,
+  loadAllNotes,
+  searchNoteById
 } from '../utils/whiteboardApi';
 import { startSyncManager, stopSyncManager, forceSync } from '../utils/syncManager';
 
@@ -25,17 +25,17 @@ const WhiteboardContext = createContext({
   loading: false,
   error: null,
   syncStatus: 'idle', // 'idle', 'syncing', 'error'
-  
+
   // Actions
-  setupPasskey: async () => {},
-  unlockWhiteboard: async () => {},
-  createNote: async () => {},
-  updateNoteContent: async () => {},
-  updateNotePosition: async () => {},
-  deleteNote: async () => {},
-  searchNotes: async () => {},
-  forceSync: async () => {},
-  reset: () => {},
+  setupPasskey: async () => { },
+  unlockWhiteboard: async () => { },
+  createNote: async () => { },
+  updateNoteContent: async () => { },
+  updateNotePosition: async () => { },
+  deleteNote: async () => { },
+  searchNotes: async () => { },
+  forceSync: async () => { },
+  reset: () => { },
 });
 
 export const WhiteboardProvider = ({ children }) => {
@@ -79,7 +79,7 @@ export const WhiteboardProvider = ({ children }) => {
   }, [isUnlocked, token]);
 
   /**
-   * Setup passkey with password 7510
+   * Setup passkey with custom password
    */
   const setupPasskey = useCallback(async (password) => {
     if (!token) {
@@ -90,6 +90,22 @@ export const WhiteboardProvider = ({ children }) => {
     setError(null);
 
     try {
+      // First check if password hash already exists in IndexedDB
+      const { success: hashExists } = await storePasswordHash(password);
+      console.log("hashExists", hashExists);
+      if (hashExists) {
+        // Password hash already exists, just verify it matches
+        const verifyResult = await verifyPassword(password);
+        if (verifyResult.success && verifyResult.valid) {
+          setIsPasswordSet(true);
+          return {
+            success: true,
+            alreadySet: true,
+            message: 'Password already set and verified'
+          };
+        }
+      }
+      console.log("Password is    ", password);
       // Call API to set passkey
       const result = await setPasskey(token, password);
       console.log(result);
@@ -105,7 +121,7 @@ export const WhiteboardProvider = ({ children }) => {
       }
 
       setIsPasswordSet(true);
-      
+
       return {
         success: true,
         alreadySet: result.alreadySet || false,
@@ -120,9 +136,9 @@ export const WhiteboardProvider = ({ children }) => {
   }, [token]);
 
   /**
-   * Unlock whiteboard with password
+   * Unlock whiteboard with custom password
    */
-  const unlockWhiteboard = useCallback(async (password = "7510") => {
+  const unlockWhiteboard = useCallback(async (password) => {
     if (!token) {
       throw new Error('No authentication token available');
     }
@@ -195,9 +211,21 @@ export const WhiteboardProvider = ({ children }) => {
 
     try {
       const negativeId = await generateNegativeId();
+
+      // Calculate responsive grid position
+      const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+      const NOTE_W = 256;
+      const NOTE_H = 192;
+      const GAP = 24;
+      const usableWidth = Math.max(320, viewportWidth - GAP * 2);
+      const perRow = Math.max(1, Math.floor(usableWidth / (NOTE_W + GAP)));
+      const idx = notes.length;
+      const col = idx % perRow;
+      const row = Math.floor(idx / perRow);
+
       const notePosition = position || {
-        x: Math.random() * 500 + 100,
-        y: Math.random() * 300 + 100
+        x: GAP + col * (NOTE_W + GAP),
+        y: GAP + row * (NOTE_H + GAP)
       };
 
       const newNote = {
@@ -228,7 +256,7 @@ export const WhiteboardProvider = ({ children }) => {
       console.error('Error creating note:', error);
       throw error;
     }
-  }, [isUnlocked]);
+  }, [isUnlocked, notes.length]);
 
   /**
    * Update note content
@@ -246,8 +274,8 @@ export const WhiteboardProvider = ({ children }) => {
       }
 
       // Update state
-      setNotes(prev => prev.map(note => 
-        note.noteId === noteId 
+      setNotes(prev => prev.map(note =>
+        note.noteId === noteId
           ? { ...note, content, modifyFlag: true }
           : note
       ));
@@ -275,8 +303,8 @@ export const WhiteboardProvider = ({ children }) => {
       }
 
       // Update state
-      setNotes(prev => prev.map(note => 
-        note.noteId === noteId 
+      setNotes(prev => prev.map(note =>
+        note.noteId === noteId
           ? { ...note, properties, modifyFlag: true }
           : note
       ));
@@ -371,11 +399,11 @@ export const WhiteboardProvider = ({ children }) => {
 
     try {
       await forceSync();
-      
+
       // Reload notes from IndexedDB to get updated IDs
       const { notes: updatedNotes } = await getAllNotes();
       setNotes(updatedNotes || []);
-      
+
       return { success: true };
     } catch (error) {
       console.error('Error forcing sync:', error);
@@ -403,7 +431,7 @@ export const WhiteboardProvider = ({ children }) => {
     loading,
     error,
     syncStatus,
-    
+
     // Actions
     setupPasskey,
     unlockWhiteboard,
