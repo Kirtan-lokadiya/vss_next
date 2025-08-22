@@ -42,6 +42,35 @@ export const hashPassword = async (password) => {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
+// Check if password hash exists in IndexedDB
+export const checkPasswordHashExists = async () => {
+  try {
+    const db = await initDB();
+    const transaction = db.transaction([CONFIG_STORE], 'readonly');
+    const store = transaction.objectStore(CONFIG_STORE);
+    
+    return new Promise((resolve, reject) => {
+      const request = store.get('passwordHash');
+      
+      request.onsuccess = () => {
+        const result = request.result;
+        resolve({ 
+          success: true, 
+          exists: result ? true : false,
+          hash: result ? result.value : null
+        });
+      };
+      
+      request.onerror = () => {
+        reject({ success: false, error: request.error });
+      };
+    });
+  } catch (error) {
+    console.error('Error checking password hash:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Store password hash in IndexedDB
 export const storePasswordHash = async (password) => {
   try {
