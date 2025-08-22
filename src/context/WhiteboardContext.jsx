@@ -70,9 +70,15 @@ export const WhiteboardProvider = ({ children }) => {
   // Setup sync manager callbacks
   const syncCallbacks = {
     onSyncStart: () => setSyncStatus('syncing'),
-    onSyncComplete: (count) => {
+    onSyncComplete: async (count) => {
       setSyncStatus('idle');
       console.log(`Synced ${count} notes`);
+      try {
+        const { notes: updatedNotes } = await getAllNotes();
+        setNotes(updatedNotes || []);
+      } catch (e) {
+        console.error('Failed to refresh notes after sync:', e);
+      }
     },
     onSyncError: (error) => {
       setSyncStatus('error');

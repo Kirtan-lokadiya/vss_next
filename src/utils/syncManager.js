@@ -84,10 +84,10 @@ class SyncManager {
 
       console.log(`Syncing ${notes.length} modified notes`);
 
-      // Prepare notes for API
+      // Prepare notes for API: use noteId and include changed fields only
       const notesToSync = notes.map(note => {
         const syncData = {
-          sendNoteId: note.sendNoteId || note.noteId,
+          noteId: note.noteId,
         };
 
         // Only include changed properties
@@ -115,6 +115,7 @@ class SyncManager {
 
       for (const result of syncResults) {
         const { sendNoteId, realNoteId, modifyFlag } = result;
+        const modifyFlagNumber = modifyFlag ? 1 : 0;
         
         if (sendNoteId < 0 && realNoteId > 0) {
           // Update negative ID with real ID
@@ -122,7 +123,7 @@ class SyncManager {
           updatedCount++;
         } else if (sendNoteId > 0) {
           // Update existing note to clear modifyFlag
-          await updateNote(sendNoteId, { modifyFlag: 0 });
+          await updateNote(sendNoteId, { modifyFlag: modifyFlagNumber });
           updatedCount++;
         }
       }

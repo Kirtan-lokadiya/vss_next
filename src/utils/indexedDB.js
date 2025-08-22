@@ -181,10 +181,11 @@ export const updateNote = async (noteId, updates) => {
       getRequest.onsuccess = () => {
         const existingNote = getRequest.result;
         if (existingNote) {
+          const hasExplicitModifyFlag = Object.prototype.hasOwnProperty.call(updates, 'modifyFlag');
           const updatedNote = { 
             ...existingNote, 
             ...updates, 
-            modifyFlag: 1 
+            modifyFlag: hasExplicitModifyFlag ? (updates.modifyFlag ? 1 : 0) : 1 
           };
           
           const putRequest = store.put(updatedNote);

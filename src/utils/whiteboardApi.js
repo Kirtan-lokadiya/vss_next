@@ -192,7 +192,8 @@ export const syncNotes = async (token, notes) => {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(notes),
+      // API expects payload in the shape { notes: [...] }
+      body: JSON.stringify({ notes }),
     });
 
     if (!response.ok) {
