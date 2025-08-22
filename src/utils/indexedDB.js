@@ -220,7 +220,7 @@ export const getModifiedNotes = async () => {
     const index = store.index('modifyFlag');
     
     return new Promise((resolve, reject) => {
-      const request = index.getAll(true);
+      const request = index.getAll(IDBKeyRange.only(true)); 
       
       request.onsuccess = () => {
         resolve({ success: true, notes: request.result });
