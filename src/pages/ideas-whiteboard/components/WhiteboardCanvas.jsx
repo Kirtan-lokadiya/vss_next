@@ -14,7 +14,8 @@ const WhiteboardCanvas = ({
   onConnectNotes,
   scale,
   viewMode,
-  onCanvasClick
+  onCanvasClick,
+  onGlobalSearch
 }) => {
   const canvasRef = useRef(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -118,6 +119,7 @@ const WhiteboardCanvas = ({
             onDelete={onDeleteNote}
             onSelect={onSelectNote}
             isSelected={selectedNoteId === note.id}
+            onGlobalSearch={onGlobalSearch}
             onConnect={() => {}}
           />
         ))}

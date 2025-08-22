@@ -11,6 +11,7 @@ const StickyNote = ({
   onSelect, 
   isSelected, 
   onConnect,
+  onGlobalSearch,
   scale = 1 
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -62,27 +63,51 @@ const StickyNote = ({
   };
 
   const getColorClasses = (color) => {
-    // Handle hex colors by converting them to a default color
+    // Normalize hex to name mapping (fallback to yellow)
+    const hexToName = {
+      '#FFFF00': 'yellow',
+      '#3B82F6': 'blue',
+      '#22C55E': 'green',
+      '#EC4899': 'pink',
+      '#A855F7': 'purple',
+    };
     if (color && color.startsWith('#')) {
-      color = 'yellow'; // Default fallback for hex colors
+      color = hexToName[color.toUpperCase()] || 'yellow';
     }
-    
+
     const colorMap = {
       yellow: 'bg-yellow-100 border-yellow-400 text-yellow-900',
       blue: 'bg-blue-100 border-blue-400 text-blue-900',
       green: 'bg-green-100 border-green-400 text-green-900',
       pink: 'bg-pink-100 border-pink-400 text-pink-900',
-      purple: 'bg-purple-100 border-purple-400 text-purple-900',
-      orange: 'bg-orange-100 border-orange-400 text-orange-900'
+      purple: 'bg-purple-100 border-purple-400 text-purple-900'
     };
     return colorMap[color] || colorMap.yellow;
   };
 
   const cycleColor = () => {
-    const order = ['yellow', 'blue', 'green', 'pink', 'purple', 'orange'];
-    const idx = order.indexOf(note.color);
-    const next = order[(idx + 1) % order.length];
-    onUpdate(note.id, { color: next });
+    // Best 5-color palette (names) mapped to hex for persistence
+    const order = ['yellow', 'blue', 'green', 'pink', 'purple'];
+    const nameToHex = {
+      yellow: '#FFFF00',
+      blue: '#3B82F6',
+      green: '#22C55E',
+      pink: '#EC4899',
+      purple: '#A855F7',
+    };
+    const hexToName = {
+      '#FFFF00': 'yellow',
+      '#3B82F6': 'blue',
+      '#22C55E': 'green',
+      '#EC4899': 'pink',
+      '#A855F7': 'purple',
+    };
+    const currentHex = (note.color || '').toUpperCase();
+    const currentName = hexToName[currentHex] || 'yellow';
+    const idx = order.indexOf(currentName);
+    const nextName = order[(idx + 1) % order.length];
+    const nextHex = nameToHex[nextName];
+    onUpdate(note.id, { color: nextHex });
   };
 
   return (
@@ -104,7 +129,7 @@ const StickyNote = ({
             <div className="flex items-center space-x-1 ml-2">
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="w-6 h-6 hover:bg-white/50 text-current" title="Edit note"><Icon name="Pencil" size={12} /></Button>
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); cycleColor(); }} className="w-6 h-6 hover:bg-white/50 text-current" title="Change color"><Icon name="Palette" size={12} /></Button>
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/search?q=${encodeURIComponent(note.title || '')}`); }} className="w-6 h-6 hover:bg-white/50 text-current" title="Search this idea"><Icon name="Globe" size={14} /></Button>
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/search?q=${encodeURIComponent(note.content || '')}`); }} className="w-6 h-6 hover:bg-white/50 text-current" title="Search this idea"><Icon name="Globe" size={14} /></Button>
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(note.id); }} className="w-6 h-6 hover:bg-red-100 text-red-600" title="Delete note"><Icon name="Trash2" size={12} /></Button>
             </div>
           )}

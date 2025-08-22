@@ -101,6 +101,18 @@ const IdeasWhiteboard = () => {
         if (!result.success) {
           showToast(result.message || 'Failed to update note', 'error');
         }
+      } else if (updates.color !== undefined) {
+        const note = notes.find(n => n.noteId === noteId);
+        if (note) {
+          const updatedProperties = {
+            ...note.properties,
+            color: updates.color
+          };
+          const result = await updateNotePosition(noteId, updatedProperties);
+          if (!result.success) {
+            showToast(result.message || 'Failed to change color', 'error');
+          }
+        }
       }
     } catch (error) {
       showToast(error.message || 'Error updating note', 'error');
@@ -157,6 +169,7 @@ const IdeasWhiteboard = () => {
     if (!isUnlocked || !query.trim()) return;
 
     try {
+      setSearchQuery(query);
       // First search locally
       const localResults = await searchNotes(query);
       
@@ -331,6 +344,7 @@ const IdeasWhiteboard = () => {
                   scale={scale}
                   viewMode="grid"
                   onCanvasClick={() => {}}
+                  onGlobalSearch={handleGlobalSearch}
                 />
               )}
 

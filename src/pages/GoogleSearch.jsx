@@ -16,6 +16,20 @@ const GoogleSearch = () => {
     setIsClient(true);
   }, []);
 
+  // Prefill from query string and auto-submit once mounted
+  useEffect(() => {
+    if (!router.isReady) return;
+    const q = typeof router.query.q === 'string' ? router.query.q : '';
+    if (q) {
+      setQuery(q);
+      // Delay submit to next tick to ensure input renders first
+      setTimeout(() => {
+        const fakeEvent = { preventDefault: () => {} };
+        handleSubmit(fakeEvent);
+      }, 0);
+    }
+  }, [router.isReady, router.query.q]);
+
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === 'Escape') {
@@ -48,9 +62,7 @@ const GoogleSearch = () => {
     try {
       const token = getAuthToken();
       const apiUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321'}/api/v1/privates/`;
-      console.log('Environment BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL);
-      console.log('Final API URL:', apiUrl);
-      console.log('Token:', token ? 'Present' : 'Missing');
+      
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -58,14 +70,12 @@ const GoogleSearch = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ content:"hello world" })
+        body: JSON.stringify({ content: query })
       });
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-      
+ 
       if (!response.ok) {
         const errorText = await response.text();
-        console.log('Error response body:', errorText);
+        
         throw new Error(`Search failed: ${response.status} ${response.statusText}`);
       }
       
