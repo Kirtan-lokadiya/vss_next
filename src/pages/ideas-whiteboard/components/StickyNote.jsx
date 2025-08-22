@@ -130,7 +130,7 @@ const StickyNote = ({
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="w-6 h-6 hover:bg-white/50 text-current" title="Edit note"><Icon name="Pencil" size={12} /></Button>
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); cycleColor(); }} className="w-6 h-6 hover:bg-white/50 text-current" title="Change color"><Icon name="Palette" size={12} /></Button>
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/search?q=${encodeURIComponent(note.content || '')}`); }} className="w-6 h-6 hover:bg-white/50 text-current" title="Search this idea"><Icon name="Globe" size={14} /></Button>
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(note.id); }} className="w-6 h-6 hover:bg-red-100 text-red-600" title="Delete note"><Icon name="Trash2" size={12} /></Button>
+              {/* <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(note.id); }} className="w-6 h-6 hover:bg-red-100 text-red-600" title="Delete note"><Icon name="Trash2" size={12} /></Button> */}
             </div>
           )}
         </div>
