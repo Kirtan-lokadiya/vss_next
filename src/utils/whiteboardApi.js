@@ -30,6 +30,7 @@ export const setPasskey = async (token, password ) => {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ password: password }),
     });
 
     const data = await response.json();
