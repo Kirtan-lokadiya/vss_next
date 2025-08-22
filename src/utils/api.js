@@ -5,7 +5,7 @@ export const ENDPOINTS = {
   feedBase: `${BASE_URL}/api/v1/feed`,
   userBase: `${BASE_URL}/api/v1/users`,
   connectBase: `${BASE_URL}/api/v1/connect`,
-  notificationBase: `${BASE_URL}/api/v1/notification`,
+  notificationBase: `${BASE_URL}/api/v1/notification/`,
 };
 
 export const getAuthToken = () => {

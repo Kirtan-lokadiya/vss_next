@@ -188,31 +188,3 @@ export const updateNote = async (token, noteId, updateData) => {
     return { success: false, message: error.message };
   }
 };
-
-/**
- * Delete a note
- * @param {string} token - Authorization token
- * @param {string} noteId - Note ID to delete
- * @returns {Promise<Object>} Deletion result
- */
-export const deleteNote = async (token, noteId) => {
-  try {
-    const response = await fetch(`${NOTES_BASE}/${noteId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to delete note');
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error deleting note:', error);
-    return { success: false, message: error.message };
-  }
-}; 

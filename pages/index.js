@@ -19,7 +19,7 @@ const HomePage = () => {
   return (
     <>
       <Head>
-        <title>LinkedBoard Pro - Home Dashboard</title>
+        <title>VSS - Home Dashboard</title>
         <meta name="description" content="Your professional networking dashboard" />
       </Head>
       

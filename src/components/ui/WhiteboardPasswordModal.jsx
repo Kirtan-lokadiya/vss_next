@@ -34,12 +34,12 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
       if (isSetupMode) {
         // Setup passkey mode
         const result = await setupPasskey(password);
-        
+
         if (!result.success) {
           showToast(result.message || 'Failed to setup password', 'error');
           return;
         }
-        
+
         if (result.alreadySet) {
           // If already set, switch to unlock mode
           setIsSetupMode(false);
@@ -132,28 +132,6 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
             )}
           </button>
         </form>
-
-        {/* Toggle between setup and unlock modes - only show when password is not set */}
-        {!isPasswordSet && (
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={toggleMode}
-              className="text-sm text-primary hover:text-primary/80 transition-colors"
-              disabled={loading}
-            >
-              {isSetupMode ? 'Already have a password? Unlock instead' : 'Need to setup security? Setup instead'}
-            </button>
-          </div>
-        )}
-
-        {/* Info about password */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-blue-700 text-xs">
-            <strong>Security Notice:</strong> Your password is securely hashed and stored locally.
-            Notes are encrypted and synced with the server automatically.
-          </p>
-        </div>
       </div>
     </div>
   );

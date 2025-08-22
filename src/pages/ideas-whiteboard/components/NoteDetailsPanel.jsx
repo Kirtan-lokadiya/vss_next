@@ -7,11 +7,9 @@ import { useRouter } from 'next/router';
 const NoteDetailsPanel = ({ 
   note, 
   onUpdateNote, 
-  onDeleteNote, 
-  onClose,
+    onClose,
   connections,
   allNotes,
-  onCreateConnection,
   onDeleteConnection
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -58,19 +56,7 @@ const NoteDetailsPanel = ({
     setIsEditing(false);
   };
 
-  const handleAddComment = () => {
-    if (newComment.trim()) {
-      const updatedComments = [...(note.comments || []), {
-        id: Date.now(),
-        text: newComment.trim(),
-        author: 'John Doe',
-        timestamp: new Date().toISOString()
-      }];
-      
-      onUpdateNote(note.id, { comments: updatedComments });
-      setNewComment('');
-    }
-  };
+
 
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -207,49 +193,7 @@ const NoteDetailsPanel = ({
             </div>
           </div>
         </div>
-      )}
-
-      {/* Connections */}
-      <div className="p-4 border-b border-border">
-        <h3 className="text-sm font-semibold text-foreground mb-3">
-          Connections ({connectedNotes.length})
-        </h3>
-        {connectedNotes.length > 0 ? (
-          <div className="space-y-2">
-            {connectedNotes.map((connectedNote) => (
-              <div
-                key={connectedNote.id}
-                className="flex items-center justify-between p-2 bg-muted rounded-lg"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {connectedNote.title}
-                  </p>
-                  <p className="text-xs text-text-secondary truncate">
-                    {connectedNote.content}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onDeleteConnection(note.id, connectedNote.id)}
-                  className="w-6 h-6 text-destructive hover:text-destructive"
-                >
-                  <Icon name="Unlink" size={12} />
-                </Button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-text-secondary">
-            No connections yet. Connect this note to others to show relationships.
-          </p>
-        )}
-      </div>
-
-     
-
-      
+      )}  
     </div>
   );
 };

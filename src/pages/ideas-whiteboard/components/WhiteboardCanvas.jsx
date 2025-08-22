@@ -11,9 +11,7 @@ const WhiteboardCanvas = ({
   onMoveNote,
   selectedNoteId,
   onSelectNote,
-  onConnectNotes,
   scale,
-  viewMode,
   onCanvasClick,
   onGlobalSearch
 }) => {

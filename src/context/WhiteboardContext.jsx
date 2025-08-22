@@ -53,7 +53,7 @@ export const WhiteboardProvider = ({ children }) => {
     const initialize = async () => {
       try {
         await initDB();
-        
+
         // Check if password hash already exists
         const hashCheckResult = await checkPasswordHashExists();
         if (hashCheckResult.success && hashCheckResult.exists) {
@@ -63,7 +63,7 @@ export const WhiteboardProvider = ({ children }) => {
         console.error('Error initializing whiteboard:', error);
       }
     };
-    
+
     initialize();
   }, []);
 
@@ -106,52 +106,58 @@ export const WhiteboardProvider = ({ children }) => {
     if (!token) {
       return { success: false, message: 'No authentication token available' };
     }
-
+  
     setLoading(true);
     setError(null);
-
+  
     try {
-      // First check if password hash already exists in IndexedDB
+      // 1. First check local IndexedDB
       const hashCheckResult = await checkPasswordHashExists();
-      
-      
       if (hashCheckResult.success && hashCheckResult.exists) {
-        // Password hash already exists, just verify it matches
         const verifyResult = await verifyPassword(password);
         if (verifyResult.success && verifyResult.valid) {
           setIsPasswordSet(true);
-          return {
-            success: true,
-            alreadySet: true,
-            message: 'Password already set and verified'
-          };
+          return { success: true, alreadySet: true, message: 'Password verified locally' };
         } else {
           return { success: false, message: 'Password verification failed - incorrect password' };
         }
       }
-      
-      // Call API to set passkey
-      
+  
+      // 2. If no local hash → check backend
+      const verifyWithBackend = await loadAllNotes(token, password);
+      if (verifyWithBackend.success) {
+        const storeResult = await storePasswordHash(password);
+        if (!storeResult.success) {
+          return { success: false, message: 'Failed to store password hash locally' };
+        }
+        setIsPasswordSet(true);
+        return {
+          success: true,
+          alreadySet: true,
+          message: 'Passkey already set on server, verified successfully'
+        };
+      } else if (verifyWithBackend.wrongPassword) {
+        return { success: false, message: 'Incorrect password' };
+      }
+  
+      // 3. If backend also doesn’t have passkey → first-time setup
       const result = await setPasskey(token, password);
-      
-
       if (!result.success && !result.alreadySet) {
         return { success: false, message: result.error || 'Failed to setup passkey' };
       }
-
-      // Store hashed password in IndexedDB
+  
       const hashResult = await storePasswordHash(password);
       if (!hashResult.success) {
-        return { success: false, message: 'Failed to store password hash' };
+        return { success: false, message: 'Failed to store password hash locally' };
       }
-
+  
       setIsPasswordSet(true);
-
       return {
         success: true,
         alreadySet: result.alreadySet || false,
         message: result.alreadySet ? 'Passkey already set' : 'Passkey setup successful'
       };
+  
     } catch (error) {
       setError(error.message);
       return { success: false, message: error.message };
@@ -159,6 +165,7 @@ export const WhiteboardProvider = ({ children }) => {
       setLoading(false);
     }
   }, [token]);
+  
 
   /**
    * Unlock whiteboard with custom password

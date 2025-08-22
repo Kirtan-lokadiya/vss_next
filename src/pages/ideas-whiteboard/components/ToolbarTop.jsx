@@ -6,16 +6,8 @@ import { useWhiteboard } from '@/src/context/WhiteboardContext';
 
 const ToolbarTop = ({
   scale,
-  onZoomIn,
-  onZoomOut,
-  onResetZoom,
   onSearch,
   searchQuery,
-  onClearBoard,
-  onSave,
-  isCollaborative,
-  onToggleCollaboration,
-  collaborators,
   onGlobalSearch
 }) => {
   const [showSearchOptions, setShowSearchOptions] = useState(false);
@@ -24,17 +16,6 @@ const ToolbarTop = ({
   const zoomLevels = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
   const currentZoomIndex = zoomLevels.findIndex(level => Math.abs(level - scale) < 0.01);
 
-  const handleSaveBoard = () => {
-    onSave();
-    const button = document.querySelector('[data-save-button]');
-    if (button) {
-      const originalText = button.textContent;
-      button.textContent = 'Saved!';
-      setTimeout(() => {
-        button.textContent = originalText;
-      }, 2000);
-    }
-  };
 
   const handleGlobalSearch = async () => {
     if (searchQuery.trim() && onGlobalSearch) {
@@ -68,10 +49,10 @@ const ToolbarTop = ({
             onKeyDown={(e) => e.key === 'Enter' && handleGlobalSearch()}
             className="pl-10 pr-20 bg-white dark:bg-[#23272f] text-foreground dark:text-white border border-input dark:border-[#3a3f4b] focus:bg-white focus:dark:bg-[#23272f]"
           />
-          <Icon 
-            name="Search" 
-            size={16} 
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary" 
+          <Icon
+            name="Search"
+            size={16}
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary"
           />
           <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
             {searchQuery && (

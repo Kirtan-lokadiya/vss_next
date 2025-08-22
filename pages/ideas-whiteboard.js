@@ -6,7 +6,7 @@ const IdeasWhiteboardPage = () => {
   return (
     <>
       <Head>
-        <title>Ideas Whiteboard - LinkedBoard Pro</title>
+        <title>VSS - Ideas Whiteboard</title>
         <meta name="description" content="Collaborative whiteboard for brainstorming and idea sharing" />
       </Head>
       <IdeasWhiteboard />
