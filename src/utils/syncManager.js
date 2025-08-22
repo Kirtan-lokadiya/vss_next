@@ -2,7 +2,7 @@
  * Sync Manager for handling automatic synchronization of notes
  */
 
-import { getModifiedNotes, updateNoteWithRealId, updateNote } from './indexedDB';
+import { getModifiedNotes, updateNoteWithRealId, updateNote, markNoteSynced } from './indexedDB';
 import { syncNotes } from './whiteboardApi';
 
 class SyncManager {
@@ -86,16 +86,31 @@ class SyncManager {
 
       // Prepare notes for API: use noteId and include changed fields only
       const notesToSync = notes.map(note => {
-        const syncData = {
-          noteId: note.noteId,
-        };
+        const syncData = { noteId: note.noteId };
 
-        // Only include changed properties
-        if (note.content !== undefined) {
+        const dirty = note.dirty || {};
+        // Include content if dirty
+        if (dirty.content) {
           syncData.content = note.content;
         }
+        // Include only changed properties
+        if (dirty.properties && typeof note.properties === 'object') {
+          const propsPatch = {};
+          for (const key of Object.keys(dirty.properties)) {
+            if (dirty.properties[key]) {
+              propsPatch[key] = note.properties[key];
+            }
+          }
+          if (Object.keys(propsPatch).length > 0) {
+            syncData.properties = propsPatch;
+          }
+        }
 
-        if (note.properties) {
+        // Fallback: if no dirty map present, send full properties/content if available
+        if (!syncData.content && note.content !== undefined && note.lastSyncedContent === undefined) {
+          syncData.content = note.content;
+        }
+        if (!syncData.properties && note.properties && note.lastSyncedProperties === undefined) {
           syncData.properties = note.properties;
         }
 
@@ -115,15 +130,17 @@ class SyncManager {
 
       for (const result of syncResults) {
         const { sendNoteId, realNoteId, modifyFlag } = result;
-        // const modifyFlagNumber = modifyFlag ? 1 : 0;
+        const normalizedFlag = modifyFlag ? 1 : 0;
         
         if (sendNoteId < 0 && realNoteId > 0) {
           // Update negative ID with real ID
           await updateNoteWithRealId(sendNoteId, realNoteId);
+          // After ID update, mark new real note as synced
+          await markNoteSynced(realNoteId, normalizedFlag);
           updatedCount++;
         } else if (sendNoteId > 0) {
-          // Update existing note to clear modifyFlag
-          await updateNote(sendNoteId);
+          // Mark existing note as synced using backend flag
+          await markNoteSynced(sendNoteId, normalizedFlag);
           updatedCount++;
         }
       }

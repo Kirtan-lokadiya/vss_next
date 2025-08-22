@@ -185,7 +185,17 @@ export const WhiteboardProvider = ({ children }) => {
         return { success: false, message: 'Invalid password, try again' }; // ✅ no throw
       }
 
-      // Load all notes from API
+      // First, check local IndexedDB for existing notes
+      const local = await getAllNotes();
+      const localNotes = (local && local.notes) || [];
+      if (localNotes.length > 0) {
+        setNotes(localNotes);
+        setIsUnlocked(true);
+        setIsPasswordSet(true);
+        return { success: true, source: 'indexeddb' };
+      }
+
+      // If no local notes, load all notes from API
       const notesResult = await loadAllNotes(token, password);
       if (!notesResult.success) {
         if (notesResult.wrongPassword) {
@@ -213,7 +223,18 @@ export const WhiteboardProvider = ({ children }) => {
           },
           sendNoteId: apiNote.noteId || apiNote.id,
           realNoteId: apiNote.noteId || apiNote.id,
-          modifyFlag: 0
+          modifyFlag: 0,
+          lastSyncedContent: apiNote.content || '',
+          lastSyncedProperties: apiNote.properties || {
+            x: 100,
+            y: 100,
+            z: 1,
+            color: '#ffffff',
+            height: 100,
+            width: 200,
+            empty: false
+          },
+          dirty: {}
         };
 
         await storeNote(note);
@@ -224,7 +245,7 @@ export const WhiteboardProvider = ({ children }) => {
       setIsUnlocked(true);
       setIsPasswordSet(true);
 
-      return { success: true };
+      return { success: true, source: 'api' };
     } catch (error) {
       setError(error.message);
       throw error;
