@@ -98,7 +98,7 @@ export const WhiteboardProvider = ({ children }) => {
    */
   const setupPasskey = useCallback(async (password) => {
     if (!token) {
-      throw new Error('No authentication token available');
+      return { success: false, message: 'No authentication token available' };
     }
 
     setLoading(true);
@@ -120,7 +120,7 @@ export const WhiteboardProvider = ({ children }) => {
             message: 'Password already set and verified'
           };
         } else {
-          throw new Error('Password verification failed - incorrect password');
+          return { success: false, message: 'Password verification failed - incorrect password' };
         }
       }
       
@@ -130,13 +130,13 @@ export const WhiteboardProvider = ({ children }) => {
       
 
       if (!result.success && !result.alreadySet) {
-        throw new Error(result.error || 'Failed to setup passkey');
+        return { success: false, message: result.error || 'Failed to setup passkey' };
       }
 
       // Store hashed password in IndexedDB
       const hashResult = await storePasswordHash(password);
       if (!hashResult.success) {
-        throw new Error('Failed to store password hash');
+        return { success: false, message: 'Failed to store password hash' };
       }
 
       setIsPasswordSet(true);
@@ -148,7 +148,7 @@ export const WhiteboardProvider = ({ children }) => {
       };
     } catch (error) {
       setError(error.message);
-      throw error;
+      return { success: false, message: error.message };
     } finally {
       setLoading(false);
     }
@@ -159,7 +159,7 @@ export const WhiteboardProvider = ({ children }) => {
    */
   const unlockWhiteboard = useCallback(async (password) => {
     if (!token) {
-      throw new Error('No authentication token available');
+      return { success: false, message: 'No authentication token available' };
     }
 
     setLoading(true);
@@ -176,9 +176,9 @@ export const WhiteboardProvider = ({ children }) => {
       const notesResult = await loadAllNotes(token, password);
       if (!notesResult.success) {
         if (notesResult.wrongPassword) {
-          throw new Error('Wrong password');
+          return { success: false, message: 'Wrong password' };
         }
-        throw new Error(notesResult.error || 'Failed to load notes');
+        return { success: false, message: notesResult.error || 'Failed to load notes' };
       }
 
       // Store notes in IndexedDB and update state
@@ -225,7 +225,7 @@ export const WhiteboardProvider = ({ children }) => {
    */
   const createNote = useCallback(async (content = "New note", position = null) => {
     if (!isUnlocked) {
-      throw new Error('Whiteboard is locked');
+      return { success: false, message: 'Whiteboard is locked' };
     }
 
     try {
@@ -282,14 +282,14 @@ export const WhiteboardProvider = ({ children }) => {
    */
   const updateNoteContent = useCallback(async (noteId, content) => {
     if (!isUnlocked) {
-      throw new Error('Whiteboard is locked');
+      return { success: false, message: 'Whiteboard is locked' };
     }
 
     try {
       // Update in IndexedDB
       const result = await updateNote(noteId, { content });
       if (!result.success) {
-        throw new Error('Failed to update note in IndexedDB');
+        return { success: false, message: 'Failed to update note in IndexedDB' };
       }
 
       // Update state
@@ -302,7 +302,7 @@ export const WhiteboardProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Error updating note content:', error);
-      throw error;
+      return { success: false, message: error.message };
     }
   }, [isUnlocked]);
 
@@ -311,14 +311,14 @@ export const WhiteboardProvider = ({ children }) => {
    */
   const updateNotePosition = useCallback(async (noteId, properties) => {
     if (!isUnlocked) {
-      throw new Error('Whiteboard is locked');
+      return { success: false, message: 'Whiteboard is locked' };
     }
 
     try {
       // Update in IndexedDB
       const result = await updateNote(noteId, { properties });
       if (!result.success) {
-        throw new Error('Failed to update note properties in IndexedDB');
+        return { success: false, message: 'Failed to update note properties in IndexedDB' };
       }
 
       // Update state
@@ -331,7 +331,7 @@ export const WhiteboardProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Error updating note position:', error);
-      throw error;
+      return { success: false, message: error.message };
     }
   }, [isUnlocked]);
 
@@ -340,7 +340,7 @@ export const WhiteboardProvider = ({ children }) => {
    */
   const deleteNote = useCallback(async (noteId) => {
     if (!isUnlocked) {
-      throw new Error('Whiteboard is locked');
+      return { success: false, message: 'Whiteboard is locked' };
     }
 
     try {
@@ -358,7 +358,7 @@ export const WhiteboardProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Error deleting note:', error);
-      throw error;
+      return { success: false, message: error.message };
     }
   }, [isUnlocked]);
 
@@ -367,7 +367,7 @@ export const WhiteboardProvider = ({ children }) => {
    */
   const searchNotesLocal = useCallback(async (query) => {
     if (!isUnlocked) {
-      throw new Error('Whiteboard is locked');
+      return { success: false, message: 'Whiteboard is locked' };
     }
 
     try {
@@ -375,7 +375,7 @@ export const WhiteboardProvider = ({ children }) => {
       return result;
     } catch (error) {
       console.error('Error searching notes:', error);
-      throw error;
+      return { success: false, message: error.message };
     }
   }, [isUnlocked]);
 
@@ -384,7 +384,7 @@ export const WhiteboardProvider = ({ children }) => {
    */
   const searchNoteByIdRemote = useCallback(async (noteId) => {
     if (!token) {
-      throw new Error('No authentication token available');
+      return { success: false, message: 'No authentication token available' };
     }
 
     try {
@@ -404,7 +404,7 @@ export const WhiteboardProvider = ({ children }) => {
       return result;
     } catch (error) {
       console.error('Error searching note by ID:', error);
-      throw error;
+      return { success: false, message: error.message };
     }
   }, [token]);
 
@@ -413,7 +413,7 @@ export const WhiteboardProvider = ({ children }) => {
    */
   const forceSyncNow = useCallback(async () => {
     if (!isUnlocked) {
-      throw new Error('Whiteboard is locked');
+      return { success: false, message: 'Whiteboard is locked' };
     }
 
     try {
@@ -426,7 +426,7 @@ export const WhiteboardProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Error forcing sync:', error);
-      throw error;
+      return { success: false, message: error.message };
     }
   }, [isUnlocked]);
 
