@@ -203,7 +203,7 @@ export const syncNotes = async (token, notes) => {
     const data = await response.json();
     
     // Expected response format:
-    // [{ "sendNoteId": -1, "realNoteId": 452, "modifyFlag": false }, ...]
+    // [{ "sendNoteId": -1, "realNoteId": 452, "modifyFlag": 0 }, ...]
     return {
       success: true,
       syncResults: data
