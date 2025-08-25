@@ -181,12 +181,64 @@ export const updateNote = async (noteId, updates) => {
       getRequest.onsuccess = () => {
         const existingNote = getRequest.result;
         if (existingNote) {
-          const hasExplicitModifyFlag = Object.prototype.hasOwnProperty.call(updates, 'modifyFlag');
-          const updatedNote = { 
-            ...existingNote, 
-            ...updates, 
-            modifyFlag: hasExplicitModifyFlag ? (updates.modifyFlag ? 1 : 0) : 1 
-          };
+          // const hasExplicitModifyFlag = Object.prototype.hasOwnProperty.call(updates, 'modifyFlag');
+        
+          const updatedNote = { ...existingNote };
+          const nextDirty = { ...(existingNote.dirty || {}) };
+
+          // Apply content update and mark dirty if changed vs last synced
+          if (Object.prototype.hasOwnProperty.call(updates || {}, 'content')) {
+            const nextContent = updates.content;
+            const changed = nextContent !== existingNote.content;
+            updatedNote.content = nextContent;
+            if (changed) {
+              nextDirty.content = true;
+            }
+          }
+
+          // Apply properties update (merge) and mark dirty keys that changed
+          if (updates && typeof updates.properties === 'object' && updates.properties !== null) {
+            updatedNote.properties = { ...(existingNote.properties || {}), ...updates.properties };
+            const lastSyncedProps = existingNote.lastSyncedProperties || {};
+            const dirtyProps = { ...(nextDirty.properties || {}) };
+            for (const key of Object.keys(updates.properties)) {
+              const nextVal = updatedNote.properties[key];
+              const lastSyncedVal = lastSyncedProps[key];
+              if (nextVal !== lastSyncedVal) {
+                dirtyProps[key] = true;
+              }
+            }
+            if (Object.keys(dirtyProps).length > 0) {
+              nextDirty.properties = dirtyProps;
+            }
+          }
+
+          // Determine modifyFlag: explicit mapping if provided, else set to 1 when something changed
+          const hasExplicitModifyFlag = Object.prototype.hasOwnProperty.call(updates || {}, 'modifyFlag');
+          if (hasExplicitModifyFlag) {
+            // Normalize boolean/number to 0/1
+            updatedNote.modifyFlag = updates.modifyFlag ? 1 : 0;
+          } else {
+            const changedSomething = (updates && (Object.prototype.hasOwnProperty.call(updates, 'content') || Object.prototype.hasOwnProperty.call(updates, 'properties')));
+            if (changedSomething) {
+              updatedNote.modifyFlag = 1;
+            }
+          }
+
+          // Allow caller to explicitly update dirty/lastSynced snapshots
+          if (Object.prototype.hasOwnProperty.call(updates || {}, 'dirty')) {
+            updatedNote.dirty = updates.dirty || {};
+          } else {
+            if (Object.keys(nextDirty).length > 0) {
+              updatedNote.dirty = nextDirty;
+            }
+          }
+          if (Object.prototype.hasOwnProperty.call(updates || {}, 'lastSyncedContent')) {
+            updatedNote.lastSyncedContent = updates.lastSyncedContent;
+          }
+          if (Object.prototype.hasOwnProperty.call(updates || {}, 'lastSyncedProperties')) {
+            updatedNote.lastSyncedProperties = updates.lastSyncedProperties;
+          }
           
           const putRequest = store.put(updatedNote);
           
@@ -260,7 +312,6 @@ export const updateNoteWithRealId = async (sendNoteId, realNoteId) => {
               noteId: realNoteId,
               sendNoteId: realNoteId,
               realNoteId: realNoteId,
-              // modifyFlag: 0
             };
             
             const putRequest = store.put(updatedNote);
@@ -378,6 +429,44 @@ export const searchNotes = async (query) => {
     return { success: true, notes: filteredNotes };
   } catch (error) {
     console.error('Error searching notes:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Mark a note as synced: normalize modifyFlag and update lastSynced snapshots
+export const markNoteSynced = async (noteId, backendModifyFlag) => {
+  try {
+    const db = await initDB();
+    const transaction = db.transaction([NOTES_STORE], 'readwrite');
+    const store = transaction.objectStore(NOTES_STORE);
+
+    return new Promise((resolve, reject) => {
+      const getRequest = store.get(noteId);
+
+      getRequest.onsuccess = () => {
+        const note = getRequest.result;
+        if (!note) {
+          reject({ success: false, error: 'Note not found' });
+          return;
+        }
+        const updated = {
+          ...note,
+          modifyFlag: backendModifyFlag ? 1 : 0,
+          lastSyncedContent: note.content,
+          lastSyncedProperties: note.properties,
+          dirty: {},
+        };
+        const putRequest = store.put(updated);
+        putRequest.onsuccess = () => resolve({ success: true, note: updated });
+        putRequest.onerror = () => reject({ success: false, error: putRequest.error });
+      };
+
+      getRequest.onerror = () => {
+        reject({ success: false, error: getRequest.error });
+      };
+    });
+  } catch (error) {
+    console.error('Error marking note as synced:', error);
     return { success: false, error: error.message };
   }
 };

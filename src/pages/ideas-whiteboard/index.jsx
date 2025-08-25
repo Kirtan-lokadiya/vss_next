@@ -27,7 +27,6 @@ const IdeasWhiteboard = () => {
     createNote, 
     updateNoteContent, 
     updateNotePosition, 
-    deleteNote,
     searchNotes,
     searchNoteById,
     reset
@@ -144,20 +143,7 @@ const IdeasWhiteboard = () => {
     }
   }, [isUnlocked, notes, updateNotePosition, showToast]);
 
-  // Handle note deletion
-  const handleDeleteNote = useCallback(async (noteId) => {
-    if (!isUnlocked) return;
 
-    try {
-      const result = await deleteNote(noteId);
-      if (!result.success) {
-        showToast(result.message || 'Failed to delete note', 'error');
-      }
-    } catch (error) {
-      showToast(error.message || 'Error deleting note', 'error');
-      console.error('Error deleting note:', error);
-    }
-  }, [isUnlocked, deleteNote, showToast]);
 
   // Handle local search
   const handleSearch = useCallback((query) => {
@@ -336,7 +322,6 @@ const IdeasWhiteboard = () => {
                   notes={canvasNotes}
                   connections={[]}
                   onUpdateNote={handleUpdateNote}
-                  onDeleteNote={handleDeleteNote}
                   onMoveNote={handleMoveNote}
                   selectedNoteId={null}
                   onSelectNote={() => {}}

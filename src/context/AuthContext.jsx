@@ -1,16 +1,18 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { openDB } from 'idb';
+
 
 // Initial context
 const AuthContext = createContext({
   token: null,
   isAuthenticated: false,
-  login: async () => {},
-  register: async () => {},
-  verifyEmailToken: async () => {},
-  logout: () => {},
-  openAuthModal: () => {},
-  closeAuthModal: () => {},
+  login: async () => { },
+  register: async () => { },
+  verifyEmailToken: async () => { },
+  logout: () => { },
+  openAuthModal: () => { },
+  closeAuthModal: () => { },
   authModalOpen: false,
   loading: false,
 });
@@ -112,8 +114,7 @@ export const AuthProvider = ({ children }) => {
       let data;
       try {
         data = await res.json();
-        console.log('Verify response:', data);
-      } catch {
+        } catch {
         // If response is not JSON, try to get text (token string)
         data = await res.text();
       }
@@ -142,10 +143,24 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const clearIndexedDB = async () => {
+    const db = await openDB("WhiteboardDB", 1);
+    for (const storeName of db.objectStoreNames) {
+      await db.clear(storeName);
+    }
+  
+  };
+
+  const logout = async () => {
     setToken(null);
     if (mounted) {
       localStorage.removeItem('token');
+    }
+
+    try {
+      await clearIndexedDB(); // wipe IndexedDB too
+    } catch (err) {
+      console.error("Failed to clear IndexedDB on logout:", err);
     }
     router.push('/login');
   };
