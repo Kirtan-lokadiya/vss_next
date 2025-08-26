@@ -99,9 +99,6 @@ const VSSAuthForm = ({ mode = 'login' }) => {
           <p className="text-gray-700 text-lg max-w-md">
             with VSS provide Open-funding to your DREAM And connect with people with similar thought
           </p>
-          <p className="text-gray-700 text-lg max-w-md">
-            with create a profile for a showcase creativity
-          </p>
         </div>
       </div>
 
@@ -126,34 +123,20 @@ const VSSAuthForm = ({ mode = 'login' }) => {
                     value={formData.fullName}
                     onChange={handleInputChange}
                     required
-<<<<<<< HEAD
-                    className="w-full h-12 text-base border-2 border-gray-800"
-=======
                     className="w-full h-12 text-base border border-gray-300 rounded-lg px-3"
->>>>>>> 2b30304812f05624df08fe72524d8c312ce6ec18
                   />
                 </div>
               )}
 
               <div>
                 <Input
-<<<<<<< HEAD
                   name="email"
                   type="email"
                   placeholder="Email address"
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className="w-full h-12 text-base border-2 border-gray-800"
-=======
-                    name="email"
-                    type="email"
-                    placeholder="Email address"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full h-12 text-base border border-gray-300 rounded-lg px-3"
->>>>>>> 2b30304812f05624df08fe72524d8c312ce6ec18
+                  className="w-full h-12 text-base border border-gray-300 rounded-lg px-3"
                 />
               </div>
 
@@ -165,11 +148,7 @@ const VSSAuthForm = ({ mode = 'login' }) => {
                   value={formData.password}
                   onChange={handleInputChange}
                   required
-<<<<<<< HEAD
-                  className="w-full h-12 text-base border-2 border-gray-800"
-=======
                   className="w-full h-12 text-base border border-gray-300 rounded-lg px-3 pr-10"
->>>>>>> 2b30304812f05624df08fe72524d8c312ce6ec18
                 />
                 <button
                   type="button"
@@ -190,11 +169,7 @@ const VSSAuthForm = ({ mode = 'login' }) => {
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
                     required
-<<<<<<< HEAD
-                    className="w-full h-12 text-base border-2 border-gray-800"
-=======
                     className="w-full h-12 text-base border border-gray-300 rounded-lg px-3 pr-10"
->>>>>>> 2b30304812f05624df08fe72524d8c312ce6ec18
                   />
                   <button
                     type="button"
@@ -254,7 +229,7 @@ const VSSAuthForm = ({ mode = 'login' }) => {
       {/* Footer */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
         <p className="text-gray-600 text-sm text-center">
-          Create a Profile for a Showcase Creativity and Connect People.
+          Create a profile to showcase your creativity.
         </p>
       </div>
     </div>

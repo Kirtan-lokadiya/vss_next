@@ -4,7 +4,7 @@ import Icon from '@/src/components/AppIcon';
 import Image from '@/src/components/AppImage';
 import Button from '@/src/components/ui/Button';
 import { useAuth } from "../../../context/AuthContext";
-import { toggleLikePost, toggleSavePost, getAuthToken, fetchPostGraph } from '@/src/utils/api';
+import { toggleLikePost, toggleSavePost, getAuthToken, fetchPostGraph, donateToFund } from '@/src/utils/api';
 import { useToast } from '@/src/context/ToastContext';
 import NetworkVisualization from '@/src/pages/connection-network-tree/components/NetworkVisualization';
 
@@ -86,14 +86,31 @@ const FeedPost = ({ post }) => {
     }
   };
 
-  const handleDonate = (amount) => {
+  const handleDonate = async (amount) => {
     if (!isAuthenticated) {
       openAuthModal();
       return;
     }
     const parsed = Number(amount);
     if (!isNaN(parsed) && parsed > 0) {
-      setDonationPool(prev => prev + parsed);
+      if (post.type === 'open_fund') {
+        try {
+          setMutating(true);
+          const token = getAuthToken();
+          await donateToFund({ postId: post.id, amount: parsed, token });
+          showToast(`Donated ₹${parsed} successfully!`, 'success');
+          // Update local state - in real app you'd refetch the post
+          if (post.fields) {
+            post.fields.collectedAmount = (post.fields.collectedAmount || 0) + parsed;
+          }
+        } catch (e) {
+          showToast(e.message || 'Failed to donate', 'error');
+        } finally {
+          setMutating(false);
+        }
+      } else {
+        setDonationPool(prev => prev + parsed);
+      }
       setShowDonate(false);
     }
   };
@@ -163,6 +180,43 @@ const FeedPost = ({ post }) => {
         <div className="prose prose-sm max-w-none">
           <p className="text-foreground leading-relaxed mb-3">{post.content}</p>
         </div>
+
+        {/* Open Fund Progress Bar */}
+        {post.type === 'open_fund' && post.fields && (
+          <div className="mt-3 border border-border rounded-xl p-4 bg-muted/20">
+            <div className="flex items-center mb-2 text-foreground font-medium">
+              <Icon name="CurrencyDollar" size={16} className="mr-2 text-primary" />
+              {post.fields.title || 'Open Fund Campaign'}
+            </div>
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all"
+                style={{ width: `${Math.min(100, Math.round(((post.fields.collectedAmount || 0) / (post.fields.totalAmount || 1)) * 100))}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-2 text-xs text-text-secondary">
+              <span>₹{(post.fields.collectedAmount || 0).toLocaleString('en-IN')} raised</span>
+              <span>{Math.min(100, Math.round(((post.fields.collectedAmount || 0) / (post.fields.totalAmount || 1)) * 100))}% funded</span>
+              <span>Goal: ₹{(post.fields.totalAmount || 0).toLocaleString('en-IN')}</span>
+            </div>
+            <div className="flex justify-end mt-3">
+              <Button variant="outline" size="sm" onClick={() => setShowDonate(!showDonate)}>Donate</Button>
+            </div>
+            {showDonate && (
+              <div className="mt-3 p-3 border border-border rounded-lg bg-card">
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {[50,100,500,1000].map(v => (
+                    <Button key={v} variant="secondary" size="sm" onClick={() => handleDonate(v)}>₹{v}</Button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="number" value={donationAmount} onChange={(e)=>setDonationAmount(e.target.value)} className="w-28 px-3 py-2 border border-border rounded-lg text-sm"/>
+                  <Button variant="default" size="sm" onClick={()=>handleDonate(donationAmount)}>Add</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Campaign Block (dummy/local) */}
         {post.campaign && (

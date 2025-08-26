@@ -50,6 +50,28 @@ export const createIdea = async ({ userId, idea, token }) => {
   return data;
 };
 
+export const createOpenFund = async ({ title, amount, content, token }) => {
+  const res = await fetch(`${ENDPOINTS.postBase}/open-fund`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ title, amount, content }),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
+  return data;
+};
+
+export const donateToFund = async ({ postId, amount, token }) => {
+  const res = await fetch(`${BASE_URL}/api/v1/open-fund/fund`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ postId, amount }),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
+  return data;
+};
+
 export const toggleLikePost = async ({ postId, token }) => {
   const res = await fetch(`${ENDPOINTS.postBase}/like?postId=${encodeURIComponent(postId)}`, {
     method: 'POST',
@@ -99,7 +121,7 @@ export const fetchFeed = async ({ page = 1, token }) => {
 
 // Helpers to map backend post shape to UI post shape used by Feed components
 export const mapApiPostToUI = (apiPost) => {
-  // New API format: { id, content, type: 'IDEA', user: { name, id, picture }, createAt: '2025-08-15T11:45:25', commentCount, likeCount, save, like }
+  // New API format: { id, content, type: 'IDEA'|'OPEN_FUND', user: { name, id, picture }, createAt: '2025-08-15T11:45:25', commentCount, likeCount, save, like, fields }
   const createdAt = apiPost?.createAt ? new Date(apiPost.createAt) : new Date();
   const author = {
     name: apiPost?.user?.name || 'User',
@@ -121,6 +143,7 @@ export const mapApiPostToUI = (apiPost) => {
     isLiked: !!apiPost?.like,
     isSaved: !!apiPost?.save,
     hashtags: [],
+    fields: apiPost?.fields || null,
   };
   // Extract hashtags from content
   try {

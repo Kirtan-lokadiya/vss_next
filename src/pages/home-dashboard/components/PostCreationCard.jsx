@@ -2,10 +2,12 @@ import React, { useState, useRef } from 'react';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
 import Input from '@/src/components/ui/Input';
-import { createIdea, getAuthToken } from '@/src/utils/api';
+import { createIdea, createOpenFund, getAuthToken } from '@/src/utils/api';
 import { extractUserId } from '@/src/utils/jwt';
+import { useToast } from '@/src/context/ToastContext';
 
 const PostCreationCard = ({ onPostCreated, onCampaignCreated }) => {
+  const { showToast } = useToast();
   const [postContent, setPostContent] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedPostType, setSelectedPostType] = useState('idea');
@@ -253,7 +255,43 @@ const PostCreationCard = ({ onPostCreated, onCampaignCreated }) => {
             </div>
             <div className="flex items-center justify-end gap-2 p-4 border-t border-border">
               <Button variant="ghost" onClick={()=>setShowCampaignModal(false)}>Cancel</Button>
-              <Button variant="default" iconName="Megaphone" iconPosition="left" onClick={()=>{ const campaign = { id: `local-campaign-${Date.now()}`, title: (campaignTitle || 'Funding Campaign').trim(), goal: Number(campaignGoal) || 630000, description: (campaignDesc || 'Support this idea by contributing to the campaign.').trim(), raised: 37807 }; try { onCampaignCreated && onCampaignCreated(campaign); } catch {} setShowCampaignModal(false); setCampaignTitle(''); setCampaignGoal(''); setCampaignDesc(''); }}>Create</Button>
+              <Button variant="default" iconName="Megaphone" iconPosition="left" onClick={async ()=>{ 
+                const title = (campaignTitle || 'Funding Campaign').trim();
+                const amount = Number(campaignGoal) || 1000;
+                const content = (campaignDesc || 'Support this idea by contributing to the campaign.').trim();
+                
+                if (title.length > 250) {
+                  showToast('Title must be 250 characters or less', 'error');
+                  return;
+                }
+                
+                try {
+                  setSubmitting(true);
+                  const token = getAuthToken();
+                  const result = await createOpenFund({ title, amount, content, token });
+                  
+                  // Create campaign object from API response
+                  const campaign = {
+                    id: result.id,
+                    title: result.fields?.title || title,
+                    goal: result.fields?.totalAmount || amount,
+                    raised: result.fields?.collectedAmount || 0,
+                    description: result.content || content
+                  };
+                  
+                  onCampaignCreated && onCampaignCreated(campaign);
+                  showToast('Open Fund campaign created successfully!', 'success');
+                } catch (e) {
+                  showToast(e.message || 'Failed to create campaign', 'error');
+                } finally {
+                  setSubmitting(false);
+                }
+                
+                setShowCampaignModal(false);
+                setCampaignTitle('');
+                setCampaignGoal('');
+                setCampaignDesc('');
+              }} disabled={submitting}>Create</Button>
             </div>
           </div>
         </div>
