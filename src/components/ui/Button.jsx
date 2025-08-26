@@ -50,6 +50,7 @@ const Button = React.forwardRef(({
     disabled = false,
     requireAuth = false,
     onClick,
+    href ,
     ...props
 }, ref) => {
     const Comp = asChild ? Slot : "button";

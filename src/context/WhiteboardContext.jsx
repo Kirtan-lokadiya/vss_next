@@ -18,6 +18,7 @@ import {
 } from '../utils/whiteboardApi';
 import { startSyncManager, stopSyncManager, forceSync } from '../utils/syncManager';
 
+
 const WhiteboardContext = createContext({
   // State
   notes: [],
@@ -33,8 +34,8 @@ const WhiteboardContext = createContext({
   createNote: async () => { },
   updateNoteContent: async () => { },
   updateNotePosition: async () => { },
-  deleteNote: async () => { },
   searchNotes: async () => { },
+  searchNoteById: async () => { },
   forceSync: async () => { },
   reset: () => { },
 });
@@ -47,27 +48,80 @@ export const WhiteboardProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [syncStatus, setSyncStatus] = useState('idle');
   const { token } = useAuth();
+  const [passkeyChecked, setPasskeyChecked] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
-  // Initialize IndexedDB and check for existing password hash on mount
-  useEffect(() => {
-    const initialize = async () => {
-      try {
-        await initDB();
 
-        // Check if password hash already exists
-        const hashCheckResult = await checkPasswordHashExists();
-        if (hashCheckResult.success && hashCheckResult.exists) {
-          setIsPasswordSet(true);
-        }
-      } catch (error) {
-        console.error('Error initializing whiteboard:', error);
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321';
+  const SECURITY_BASE = `${BASE_URL}/api/v1/network-security`;
+
+useEffect(() => {
+  let mounted = true;
+  const initialize = async () => {
+    setInitializing(true);
+    try {
+      await initDB();
+      // 1. Local check
+      const hashCheck = await checkPasswordHashExists();
+      if (hashCheck.success && hashCheck.exists) {
+        if (!mounted) return;
+        setIsPasswordSet(true);
+        setPasskeyChecked(true);
+        return;
       }
-    };
 
-    initialize();
-  }, []);
+      // 2. If no local hash, check backend (if token available)
+      if (token) {
+        try {
+          const res = await fetch(`${SECURITY_BASE}/passkeys/projection`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+            
 
-  // Setup sync manager callbacks
+          if (res.ok) {
+            const data = await res.json();
+            
+            if (data?.encryptedChecksum) {
+              if (!mounted) return;
+              setIsPasswordSet(true);
+            } else {
+              if (!mounted) return;
+              setIsPasswordSet(false);
+            }
+          } else {
+            // treat error as "not set"
+            if (!mounted) return;
+            setIsPasswordSet(false);
+          }
+        } catch (err) {
+          console.error('Backend passkey check failed', err);
+          if (!mounted) return;
+          setIsPasswordSet(false);
+        }
+      } else {
+        if (!mounted) return;
+        setIsPasswordSet(false);
+      }
+
+    } catch (err) {
+      console.error('Init error', err);
+      if (!mounted) return;
+      setIsPasswordSet(false);
+    } finally {
+      if (!mounted) return;
+      setPasskeyChecked(true);
+      setInitializing(false);
+    }
+  };
+
+  initialize();
+  return () => { mounted = false; };
+}, [token]);
+
+
+  // ---------------------------
+  // Sync manager lifecycle
+  // ---------------------------
   const syncCallbacks = {
     onSyncStart: () => setSyncStatus('syncing'),
     onSyncComplete: async (count) => {
@@ -86,35 +140,31 @@ export const WhiteboardProvider = ({ children }) => {
     },
   };
 
-  // Start/stop sync manager based on unlock status
   useEffect(() => {
     if (isUnlocked && token) {
       startSyncManager(token, syncCallbacks);
     } else {
       stopSyncManager();
     }
-
-    return () => {
-      stopSyncManager();
-    };
+    return () => stopSyncManager();
   }, [isUnlocked, token]);
 
-  /**
-   * Setup passkey with custom password
-   */
+  // ---------------------------
+  // Setup Passkey
+  // ---------------------------
   const setupPasskey = useCallback(async (password) => {
     if (!token) {
       return { success: false, message: 'No authentication token available' };
     }
-  
+
     setLoading(true);
     setError(null);
-  
+
     try {
-      // 1. First check local IndexedDB
+          // 1. Check local hash first
       const hashCheckResult = await checkPasswordHashExists();
       if (hashCheckResult.success && hashCheckResult.exists) {
-        const verifyResult = await verifyPassword(password);
+        const verifyResult = await verifyPassword(password,token);
         if (verifyResult.success && verifyResult.valid) {
           setIsPasswordSet(true);
           return { success: true, alreadySet: true, message: 'Password verified locally' };
@@ -122,42 +172,41 @@ export const WhiteboardProvider = ({ children }) => {
           return { success: false, message: 'Password verification failed - incorrect password' };
         }
       }
-  
-      // 2. If no local hash → check backend
-      const verifyWithBackend = await loadAllNotes(token, password);
-      if (verifyWithBackend.success) {
-        const storeResult = await storePasswordHash(password);
-        if (!storeResult.success) {
-          return { success: false, message: 'Failed to store password hash locally' };
-        }
-        setIsPasswordSet(true);
-        return {
-          success: true,
-          alreadySet: true,
-          message: 'Passkey already set on server, verified successfully'
-        };
-      } else if (verifyWithBackend.wrongPassword) {
-        return { success: false, message: 'Incorrect password' };
-      }
-  
+
+      // // 2. If no local hash, verify with backend
+      // const verifyWithBackend = await loadAllNotes(token, password);
+      // if (verifyWithBackend.success) {
+      //   const storeResult = await storePasswordHash(password);
+      //   if (!storeResult.success) {
+      //     return { success: false, message: 'Failed to store password hash locally' };
+      //   }
+      //   setIsPasswordSet(true);
+      //   return {
+      //     success: true,
+      //     alreadySet: true,
+      //     message: 'Passkey already set on server, verified successfully'
+      //   };
+      // } else if (verifyWithBackend.wrongPassword) {
+      //   return { success: false, message: 'Incorrect password' };
+      // }
+
       // 3. If backend also doesn’t have passkey → first-time setup
       const result = await setPasskey(token, password);
       if (!result.success && !result.alreadySet) {
         return { success: false, message: result.error || 'Failed to setup passkey' };
       }
-  
+
       const hashResult = await storePasswordHash(password);
       if (!hashResult.success) {
         return { success: false, message: 'Failed to store password hash locally' };
       }
-  
+
       setIsPasswordSet(true);
       return {
         success: true,
         alreadySet: result.alreadySet || false,
         message: result.alreadySet ? 'Passkey already set' : 'Passkey setup successful'
       };
-  
     } catch (error) {
       setError(error.message);
       return { success: false, message: error.message };
@@ -165,11 +214,10 @@ export const WhiteboardProvider = ({ children }) => {
       setLoading(false);
     }
   }, [token]);
-  
 
-  /**
-   * Unlock whiteboard with custom password
-   */
+  // ---------------------------
+  // Unlock Whiteboard
+  // ---------------------------
   const unlockWhiteboard = useCallback(async (password) => {
     if (!token) {
       return { success: false, message: 'No authentication token available' };
@@ -179,14 +227,15 @@ export const WhiteboardProvider = ({ children }) => {
     setError(null);
 
     try {
-      // Verify password against stored hash
-      const verifyResult = await verifyPassword(password);
+      // console.log("token",token);
+      const verifyResult = await verifyPassword(password,token);
       if (!verifyResult.success || !verifyResult.valid) {
-        return { success: false, message: 'Invalid password, try again' }; // ✅ no throw
+        return { success: false, message: 'Invalid password, try again' };
       }
 
-      // First, check local IndexedDB for existing notes
+      // 1. Load notes from IndexedDB
       const local = await getAllNotes();
+      console.log("local",local)
       const localNotes = (local && local.notes) || [];
       if (localNotes.length > 0) {
         setNotes(localNotes);
@@ -195,8 +244,10 @@ export const WhiteboardProvider = ({ children }) => {
         return { success: true, source: 'indexeddb' };
       }
 
-      // If no local notes, load all notes from API
+      // 2. If no local notes, load from backend
       const notesResult = await loadAllNotes(token, password);
+      
+      console.log("noteResult",notesResult)
       if (!notesResult.success) {
         if (notesResult.wrongPassword) {
           return { success: false, message: 'Wrong password' };
@@ -204,7 +255,6 @@ export const WhiteboardProvider = ({ children }) => {
         return { success: false, message: notesResult.error || 'Failed to load notes' };
       }
 
-      // Store notes in IndexedDB and update state
       const apiNotes = notesResult.notes || [];
       const formattedNotes = [];
 
@@ -248,46 +298,39 @@ export const WhiteboardProvider = ({ children }) => {
       return { success: true, source: 'api' };
     } catch (error) {
       setError(error.message);
-      throw error;
+      return { success: false, message: error.message };
     } finally {
       setLoading(false);
     }
   }, [token]);
 
-  /**
-   * Create a new note
-   */
+  // ---------------------------
+  // Notes actions
+  // ---------------------------
   const createNote = useCallback(async (content = "New note", position = null) => {
     if (!isUnlocked) {
       return { success: false, message: 'Whiteboard is locked' };
     }
-
     try {
       const negativeId = await generateNegativeId();
-
-      // Calculate responsive grid position
       const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
-      const NOTE_W = 256;
-      const NOTE_H = 192;
-      const GAP = 24;
+      const NOTE_W = 256, NOTE_H = 192, GAP = 24;
       const usableWidth = Math.max(320, viewportWidth - GAP * 2);
       const perRow = Math.max(1, Math.floor(usableWidth / (NOTE_W + GAP)));
       const idx = notes.length;
       const col = idx % perRow;
       const row = Math.floor(idx / perRow);
-
       const notePosition = position || {
         x: GAP + col * (NOTE_W + GAP),
         y: GAP + row * (NOTE_H + GAP)
       };
-
       const newNote = {
         noteId: negativeId,
         content,
         properties: {
           x: notePosition.x,
           y: notePosition.y,
-          z: Date.now() % 1000, // Simple z-index
+          z: Date.now() % 1000,
           color: '#FFFFFF',
           height: 140,
           width: 240,
@@ -297,149 +340,96 @@ export const WhiteboardProvider = ({ children }) => {
         realNoteId: null,
         modifyFlag: 1
       };
-
-      // Store in IndexedDB
       await storeNote(newNote);
-
-      // Update state
       setNotes(prev => [...prev, newNote]);
-
       return { success: true, note: newNote };
     } catch (error) {
       console.error('Error creating note:', error);
-      throw error;
+      return { success: false, message: error.message };
     }
   }, [isUnlocked, notes.length]);
 
-  /**
-   * Update note content
-   */
   const updateNoteContent = useCallback(async (noteId, content) => {
     if (!isUnlocked) {
       return { success: false, message: 'Whiteboard is locked' };
     }
-
     try {
-      // Update in IndexedDB
       const result = await updateNote(noteId, { content });
       if (!result.success) {
         return { success: false, message: 'Failed to update note in IndexedDB' };
       }
-
-      // Update state
       setNotes(prev => prev.map(note =>
-        note.noteId === noteId
-          ? { ...note, content, modifyFlag: 1 }
-          : note
+        note.noteId === noteId ? { ...note, content, modifyFlag: 1 } : note
       ));
-
       return { success: true };
     } catch (error) {
-      console.error('Error updating note content:', error);
       return { success: false, message: error.message };
     }
   }, [isUnlocked]);
 
-  /**
-   * Update note position/properties
-   */
   const updateNotePosition = useCallback(async (noteId, properties) => {
     if (!isUnlocked) {
       return { success: false, message: 'Whiteboard is locked' };
     }
-
     try {
-      // Update in IndexedDB
       const result = await updateNote(noteId, { properties });
       if (!result.success) {
         return { success: false, message: 'Failed to update note properties in IndexedDB' };
       }
-
-      // Update state
       setNotes(prev => prev.map(note =>
-        note.noteId === noteId
-          ? { ...note, properties, modifyFlag: 1 }
-          : note
+        note.noteId === noteId ? { ...note, properties, modifyFlag: 1 } : note
       ));
-
       return { success: true };
     } catch (error) {
-      console.error('Error updating note position:', error);
       return { success: false, message: error.message };
     }
   }, [isUnlocked]);
 
-  /**
-   * Search notes
-   */
   const searchNotesLocal = useCallback(async (query) => {
     if (!isUnlocked) {
       return { success: false, message: 'Whiteboard is locked' };
     }
-
     try {
-      const result = await searchNotes(query);
-      return result;
+      return await searchNotes(query);
     } catch (error) {
-      console.error('Error searching notes:', error);
       return { success: false, message: error.message };
     }
   }, [isUnlocked]);
 
-  /**
-   * Search note by ID (for global search)
-   */
   const searchNoteByIdRemote = useCallback(async (noteId) => {
     if (!token) {
       return { success: false, message: 'No authentication token available' };
     }
-
     try {
-      // If negative ID, sync first to get real ID
       let realNoteId = noteId;
       if (noteId < 0) {
         await forceSync();
-        // Get updated note from IndexedDB
         const { notes: updatedNotes } = await getAllNotes();
         const updatedNote = updatedNotes.find(n => n.sendNoteId === noteId);
         if (updatedNote && updatedNote.realNoteId > 0) {
           realNoteId = updatedNote.realNoteId;
         }
       }
-
-      const result = await searchNoteById(token, realNoteId);
-      return result;
+      return await searchNoteById(token, realNoteId);
     } catch (error) {
-      console.error('Error searching note by ID:', error);
       return { success: false, message: error.message };
     }
   }, [token]);
 
-  /**
-   * Force sync
-   */
   const forceSyncNow = useCallback(async () => {
     if (!isUnlocked) {
       return { success: false, message: 'Whiteboard is locked' };
     }
-
     try {
       await forceSync();
-
-      // Reload notes from IndexedDB to get updated IDs
       const { notes: updatedNotes } = await getAllNotes();
       setNotes(updatedNotes || []);
-
       return { success: true };
     } catch (error) {
-      console.error('Error forcing sync:', error);
       return { success: false, message: error.message };
     }
   }, [isUnlocked]);
 
-  /**
-   * Reset whiteboard state
-   */
   const reset = useCallback(() => {
     setNotes([]);
     setIsPasswordSet(false);
@@ -450,15 +440,12 @@ export const WhiteboardProvider = ({ children }) => {
   }, []);
 
   const value = {
-    // State
     notes,
     isPasswordSet,
     isUnlocked,
     loading,
     error,
     syncStatus,
-
-    // Actions
     setupPasskey,
     unlockWhiteboard,
     createNote,
@@ -468,6 +455,8 @@ export const WhiteboardProvider = ({ children }) => {
     searchNoteById: searchNoteByIdRemote,
     forceSync: forceSyncNow,
     reset,
+    passkeyChecked,
+    initializing
   };
 
   return (

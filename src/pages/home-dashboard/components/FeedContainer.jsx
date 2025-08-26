@@ -10,6 +10,8 @@ const FeedContainer = ({ newPost, refreshKey, attachCampaign, onCampaignAttached
   const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(1);
+  const [showModal, setShowModal] = useState(false);
+
 
   // Guard against double effects in React 18 StrictMode (dev only)
   const fetchedKeysRef = useRef(new Set());
@@ -123,7 +125,7 @@ const FeedContainer = ({ newPost, refreshKey, attachCampaign, onCampaignAttached
             <p className="text-text-secondary mb-4">
               Your feed is empty. Start following people or create your first post!
             </p>
-            <Button variant="default" iconName="Plus" iconPosition="left" iconSize={16}>
+            <Button variant="default" iconName="Plus" iconPosition="left" iconSize={16} onClick={() => setShowModal(true)}>
               Create Post
             </Button>
           </div>

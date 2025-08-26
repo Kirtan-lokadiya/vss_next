@@ -88,37 +88,87 @@ export const storePasswordHash = async (password) => {
     return { success: false, error: error.message };
   }
 };
-
-// Verify password against stored hash
-export const verifyPassword = async (password) => {
+export const verifyPassword = async (password, token = null, securityBaseUrl = null) => {
   try {
     const db = await initDB();
     const hashedPassword = await hashPassword(password);
-    
+
     const transaction = db.transaction([CONFIG_STORE], 'readonly');
     const store = transaction.objectStore(CONFIG_STORE);
-    
+
     return new Promise((resolve, reject) => {
       const request = store.get('passwordHash');
-      
-      request.onsuccess = () => {
+
+      request.onsuccess = async () => {
         const result = request.result;
-        if (result && result.value === hashedPassword) {
-          resolve({ success: true, valid: true });
-        } else {
-          resolve({ success: true, valid: false });
+
+        if (result && result.value) {
+          // ✅ Local hash check
+          if (result.value === hashedPassword) {
+            resolve({ success: true, valid: true, source: "local" });
+          } else {
+            resolve({ success: true, valid: false, source: "local" });
+          }
+          return;
+        }
+
+        // No local hash -> fallback to backend check
+        try {
+          const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321';
+          const securityUrl = `${BASE_URL}/api/v1/network-security`;
+          console.log("token1",token);
+          const res = await fetch(`${securityUrl}/passkeys?password=${encodeURIComponent(password)}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              // include Authorization header only if token provided
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+
+          });
+
+          let data;
+          try {
+            data = await res.json();
+          } catch (e) {
+            data = null;
+          }
+        console.log("data1",data);
+          // If backend returns an object with publicKey -> valid password on server
+          if (res.ok && data && data.publicKey) {
+            // store local hash for offline checks going forward
+            await storePasswordHash(password);
+            resolve({ success: true, valid: true, source: "backend" });
+            return;
+          }
+
+          // Special case: backend returns 200 but has errors.message "Already Set Security Key"
+          const errMsg = data?.errors?.message || "";
+          if (errMsg.includes("Password is Not correct")) {
+            // This indicates: server has a passkey already (user must unlock), but password provided is not usable to create new passkey.
+            resolve({ success: true, valid: false, source: "backend", serverAlreadySet: true });
+            return;
+          }
+
+            // Default fallback: treat as invalid password (backend didn't confirm)
+          resolve({ success: true, valid: false, source: "backend" });
+        } catch (err) {
+          console.error("Backend password verify failed:", err);
+          resolve({ success: false, error: err.message, source: "backend" });
         }
       };
-      
+
       request.onerror = () => {
         reject({ success: false, error: request.error });
       };
     });
   } catch (error) {
-    console.error('Error verifying password:', error);
+    console.error("Error verifying password:", error);
     return { success: false, error: error.message };
   }
 };
+
+
 
 // Get all notes from IndexedDB
 export const getAllNotes = async () => {
