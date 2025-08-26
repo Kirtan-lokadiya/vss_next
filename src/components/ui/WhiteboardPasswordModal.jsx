@@ -7,7 +7,7 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [isSetupMode, setIsSetupMode] = useState(false);
 
-  const { setupPasskey, unlockWhiteboard, isPasswordSet } = useWhiteboard();
+const { setupPasskey, unlockWhiteboard, isPasswordSet, passkeyChecked, initializing } = useWhiteboard();
   const { showToast } = useToast();
 
   // Reset state when modal opens
@@ -25,6 +25,7 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
 
     if (!password.trim()) {
       showToast('Please enter a password', 'error');
+      console.log("Password is required");
       return;
     }
 
@@ -34,30 +35,33 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
       if (isSetupMode) {
         // Setup passkey mode
         const result = await setupPasskey(password);
-
+        console.log("Setup Passkey Result:", result);
         if (!result.success) {
           showToast(result.message || 'Failed to setup password', 'error');
+          console.log("Setup Passkey Error:", result);
           return;
         }
 
         if (result.alreadySet) {
-          // If already set, switch to unlock mode
-          setIsSetupMode(false);
+            setIsSetupMode(false);  
         } else {
           // Setup successful, now unlock and wait for completion
           const unlockResult = await unlockWhiteboard(password);
           if (!unlockResult.success) {
             showToast(unlockResult.message || 'Failed to unlock whiteboard', 'error');
+            console.log("Unlock after setup error:", unlockResult);
             return;
           }
           // Only close modal after successful unlock and loadAllNotes completion
           onClose();
         }
-      } else {
+      } 
+      else {
         // Unlock mode - wait for both password verification and loadAllNotes to complete
         const unlockResult = await unlockWhiteboard(password);
         if (!unlockResult.success) {
           showToast(unlockResult.message || 'Invalid password, please try again', 'error');
+          console.log("Unlock error:", unlockResult);
           return;
         }
         // Only close modal after successful unlock and loadAllNotes completion
@@ -77,9 +81,7 @@ const WhiteboardPasswordModal = ({ open, onClose }) => {
     }
   };
 
-  const toggleMode = () => {
-    setIsSetupMode(!isSetupMode);
-  };
+
 
   if (!open) return null;
 

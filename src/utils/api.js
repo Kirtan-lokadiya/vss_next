@@ -50,33 +50,6 @@ export const createIdea = async ({ userId, idea, token }) => {
   return data;
 };
 
-export const fetchFeed = async ({ page = 1, token }) => {
-  const res = await fetch(`${ENDPOINTS.feedBase}/?page=${encodeURIComponent(page)}`, {
-    headers: authHeaders(token),
-  });
-  const data = await getJsonSafe(res);
-  ensureOk(res, data);
-  return data;
-};
-
-export const fetchUserLiked = async ({ token }) => {
-  const res = await fetch(`${ENDPOINTS.postBase}/user/liked`, {
-    headers: authHeaders(token),
-  });
-  const data = await getJsonSafe(res);
-  ensureOk(res, data);
-  return data;
-};
-
-export const fetchUserSaved = async ({ token }) => {
-  const res = await fetch(`${ENDPOINTS.postBase}/user/saved`, {
-    headers: authHeaders(token),
-  });
-  const data = await getJsonSafe(res);
-  ensureOk(res, data);
-  return data;
-};
-
 export const toggleLikePost = async ({ postId, token }) => {
   const res = await fetch(`${ENDPOINTS.postBase}/like?postId=${encodeURIComponent(postId)}`, {
     method: 'POST',
@@ -97,20 +70,37 @@ export const toggleSavePost = async ({ postId, token }) => {
   return true;
 };
 
+export const fetchUserLiked = async ({ token, page = 1, size = 5 }) => {
+  const res = await fetch(`${ENDPOINTS.postBase}/user/liked?page=${page}&size=${size}`, {
+    headers: authHeaders(token),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
+  return data;
+};
+
+export const fetchUserSaved = async ({ token, page = 1, size = 5 }) => {
+  const res = await fetch(`${ENDPOINTS.postBase}/user/saved?page=${page}&size=${size}`, {
+    headers: authHeaders(token),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
+  return data;
+};
+
+export const fetchFeed = async ({ page = 1, token }) => {
+  const res = await fetch(`${ENDPOINTS.feedBase}/?page=${encodeURIComponent(page)}`, {
+    headers: authHeaders(token),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
+  return data;
+};
+
 // Helpers to map backend post shape to UI post shape used by Feed components
 export const mapApiPostToUI = (apiPost) => {
-  // api shape fields example:
-  // { id, content, type: 'IDEA', title, user: { name, id, picture }, createAt: [yyyy, m, d, h, min, s, ns], commentCount, likeCount, save, like }
-  const createdAt = Array.isArray(apiPost?.createAt)
-    ? new Date(
-        apiPost.createAt[0] || 1970,
-        (apiPost.createAt[1] || 1) - 1,
-        apiPost.createAt[2] || 1,
-        apiPost.createAt[3] || 0,
-        apiPost.createAt[4] || 0,
-        apiPost.createAt[5] || 0
-      )
-    : new Date();
+  // New API format: { id, content, type: 'IDEA', user: { name, id, picture }, createAt: '2025-08-15T11:45:25', commentCount, likeCount, save, like }
+  const createdAt = apiPost?.createAt ? new Date(apiPost.createAt) : new Date();
   const author = {
     name: apiPost?.user?.name || 'User',
     title: '',

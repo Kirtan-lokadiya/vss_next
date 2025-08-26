@@ -21,5 +21,5 @@ export const decodeJwtPayload = (token) => {
 export const extractUserId = (token) => {
 	const payload = decodeJwtPayload(token);
 	// The environment indicates userId is at payload.userId
-	return payload?.userId ?? payload?.id ?? null;
+		return payload?.uid ?? payload?.id ?? null;
 };

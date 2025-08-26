@@ -10,17 +10,45 @@ const FeedContainer = ({ newPost, refreshKey, attachCampaign, onCampaignAttached
   const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(1);
+  const [showModal, setShowModal] = useState(false);
+
 
   // Guard against double effects in React 18 StrictMode (dev only)
   const fetchedKeysRef = useRef(new Set());
 
   useEffect(() => {
-    const key = `${filter}|${String(refreshKey)}`;
-    if (fetchedKeysRef.current.has(key)) return;
-    fetchedKeysRef.current.add(key);
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlFilter = urlParams.get('filter') || 'all';
+    setFilter(urlFilter);
+  }, []);
+
+  useEffect(() => {
+    const checkUrlChange = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlFilter = urlParams.get('filter') || 'all';
+      if (urlFilter !== filter) {
+        setFilter(urlFilter);
+      }
+    };
+    
+    const interval = setInterval(checkUrlChange, 100);
+    return () => clearInterval(interval);
+  }, [filter]);
+
+  useEffect(() => {
+    fetchedKeysRef.current.clear();
     loadPosts(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, refreshKey]);
+
+  useEffect(() => {
+    const handleRouteChange = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlFilter = urlParams.get('filter') || 'all';
+      setFilter(urlFilter);
+    };
+    window.addEventListener('popstate', handleRouteChange);
+    return () => window.removeEventListener('popstate', handleRouteChange);
+  }, []);
 
   useEffect(() => {
     if (newPost) {
@@ -52,21 +80,34 @@ const FeedContainer = ({ newPost, refreshKey, attachCampaign, onCampaignAttached
     try {
       const token = getAuthToken();
       let data = [];
+      
+      console.log('Loading posts for filter:', filter);
+      
       if (filter === 'liked') {
-        data = await fetchUserLiked({ token });
+        const result = await fetchUserLiked({ token });
+        console.log('Liked posts result:', result);
+        data = result;
       } else if (filter === 'saved') {
-        data = await fetchUserSaved({ token });
+        const result = await fetchUserSaved({ token });
+        console.log('Saved posts result:', result);
+        data = result;
       } else {
-        data = await fetchFeed({ page: 1, token });
+        const result = await fetchFeed({ page: 1, token });
+        console.log('Feed result:', result);
+        data = result;
       }
+      
       let mapped = Array.isArray(data) ? data.map(mapApiPostToUI) : [];
+      console.log('Mapped posts:', mapped);
+      
       if (filter === 'idea') mapped = mapped.filter(p => p.type === 'idea');
       if (filter === 'thought') mapped = mapped.filter(p => p.type === 'thought');
+      
       setPosts(mapped);
       setHasMore(false); // until pagination endpoint defined
       setPage(1);
     } catch (e) {
-      console.error(e);
+      console.error('Error loading posts:', e);
       setPosts([]);
       setHasMore(false);
     } finally {
@@ -118,14 +159,22 @@ const FeedContainer = ({ newPost, refreshKey, attachCampaign, onCampaignAttached
         )}
         {!loading && posts.length === 0 && (
           <div className="bg-card border border-border rounded-lg shadow-card p-12 text-center">
-            <Icon name="FileText" size={48} className="text-text-secondary mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">No posts found</h3>
+            <Icon name={filter === 'liked' ? 'ThumbsUp' : filter === 'saved' ? 'Bookmark' : 'FileText'} size={48} className="text-text-secondary mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              {filter === 'liked' ? 'No liked posts' : 
+               filter === 'saved' ? 'No saved posts' : 
+               'No posts found'}
+            </h3>
             <p className="text-text-secondary mb-4">
-              Your feed is empty. Start following people or create your first post!
+              {filter === 'liked' ? 'You haven\'t liked any posts yet.' : 
+               filter === 'saved' ? 'You haven\'t saved any posts yet.' : 
+               'Your feed is empty. Start following people or create your first post!'}
             </p>
-            <Button variant="default" iconName="Plus" iconPosition="left" iconSize={16}>
-              Create Post
-            </Button>
+            {filter === 'all' && (
+              <Button variant="default" iconName="Plus" iconPosition="left" iconSize={16} onClick={() => setShowModal(true)}>
+                Create Post
+              </Button>
+            )}
           </div>
         )}
         {!loading && hasMore && posts.length > 0 && (

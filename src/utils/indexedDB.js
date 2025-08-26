@@ -1,9 +1,8 @@
 /**
  * IndexedDB utilities for managing notes, password hash, and offline data
  */
-
 const DB_NAME = 'WhiteboardDB';
-const DB_VERSION = 1;
+const DB_VERSION = 3; // 🔼 bump version to trigger migration
 const NOTES_STORE = 'notes';
 const CONFIG_STORE = 'config';
 
@@ -11,21 +10,37 @@ const CONFIG_STORE = 'config';
 export const initDB = () => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
-    
+
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
-      
-      // Create notes store
+
+      // ----- Notes Store -----
+      let notesStore;
       if (!db.objectStoreNames.contains(NOTES_STORE)) {
-        const notesStore = db.createObjectStore(NOTES_STORE, { keyPath: 'noteId' });
-        notesStore.createIndex('modifyFlag', 'modifyFlag', { unique: false });
-        notesStore.createIndex('sendNoteId', 'sendNoteId', { unique: false });
+        // Create notes store if not exists
+        notesStore = db.createObjectStore(NOTES_STORE, { keyPath: 'noteId' });
+      } else {
+        // Get existing store
+        notesStore = event.target.transaction.objectStore(NOTES_STORE);
+
+        // ✅ Remove old indexes if they exist
+        if (notesStore.indexNames.contains('modifyFlag')) {
+          notesStore.deleteIndex('modifyFlag');
+        }
+        if (notesStore.indexNames.contains('sendNoteId')) {
+          notesStore.deleteIndex('sendNoteId');
+        }
       }
-      
-      // Create config store for password hash and other settings
+
+      // ✅ Ensure new index exists
+      if (!notesStore.indexNames.contains('isDirty')) {
+        notesStore.createIndex('isDirty', 'isDirty', { unique: false });
+      }
+
+      // ----- Config Store -----
       if (!db.objectStoreNames.contains(CONFIG_STORE)) {
         db.createObjectStore(CONFIG_STORE, { keyPath: 'key' });
       }
@@ -88,37 +103,87 @@ export const storePasswordHash = async (password) => {
     return { success: false, error: error.message };
   }
 };
-
-// Verify password against stored hash
-export const verifyPassword = async (password) => {
+export const verifyPassword = async (password, token = null, securityBaseUrl = null) => {
   try {
     const db = await initDB();
     const hashedPassword = await hashPassword(password);
-    
+
     const transaction = db.transaction([CONFIG_STORE], 'readonly');
     const store = transaction.objectStore(CONFIG_STORE);
-    
+
     return new Promise((resolve, reject) => {
       const request = store.get('passwordHash');
-      
-      request.onsuccess = () => {
+
+      request.onsuccess = async () => {
         const result = request.result;
-        if (result && result.value === hashedPassword) {
-          resolve({ success: true, valid: true });
-        } else {
-          resolve({ success: true, valid: false });
+
+        if (result && result.value) {
+          // ✅ Local hash check
+          if (result.value === hashedPassword) {
+            resolve({ success: true, valid: true, source: "local" });
+          } else {
+            resolve({ success: true, valid: false, source: "local" });
+          }
+          return;
+        }
+
+        // No local hash -> fallback to backend check
+        try {
+          const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5321';
+          const securityUrl = `${BASE_URL}/api/v1/network-security`;
+          console.log("token1",token);
+          const res = await fetch(`${securityUrl}/passkeys?password=${encodeURIComponent(password)}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              // include Authorization header only if token provided
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+
+          });
+
+          let data;
+          try {
+            data = await res.json();
+          } catch (e) {
+            data = null;
+          }
+        console.log("data1",data);
+          // If backend returns an object with publicKey -> valid password on server
+          if (res.ok && data && data.publicKey) {
+            // store local hash for offline checks going forward
+            await storePasswordHash(password);
+            resolve({ success: true, valid: true, source: "backend" });
+            return;
+          }
+
+          // Special case: backend returns 200 but has errors.message "Already Set Security Key"
+          const errMsg = data?.errors?.message || "";
+          if (errMsg.includes("Password is Not correct")) {
+            // This indicates: server has a passkey already (user must unlock), but password provided is not usable to create new passkey.
+            resolve({ success: true, valid: false, source: "backend", serverAlreadySet: true });
+            return;
+          }
+
+            // Default fallback: treat as invalid password (backend didn't confirm)
+          resolve({ success: true, valid: false, source: "backend" });
+        } catch (err) {
+          console.error("Backend password verify failed:", err);
+          resolve({ success: false, error: err.message, source: "backend" });
         }
       };
-      
+
       request.onerror = () => {
         reject({ success: false, error: request.error });
       };
     });
   } catch (error) {
-    console.error('Error verifying password:', error);
+    console.error("Error verifying password:", error);
     return { success: false, error: error.message };
   }
 };
+
+
 
 // Get all notes from IndexedDB
 export const getAllNotes = async () => {
@@ -181,63 +246,29 @@ export const updateNote = async (noteId, updates) => {
       getRequest.onsuccess = () => {
         const existingNote = getRequest.result;
         if (existingNote) {
-          // const hasExplicitModifyFlag = Object.prototype.hasOwnProperty.call(updates, 'modifyFlag');
-        
           const updatedNote = { ...existingNote };
-          const nextDirty = { ...(existingNote.dirty || {}) };
+          let hasChanges = false;
 
-          // Apply content update and mark dirty if changed vs last synced
+          // Apply content update
           if (Object.prototype.hasOwnProperty.call(updates || {}, 'content')) {
-            const nextContent = updates.content;
-            const changed = nextContent !== existingNote.content;
-            updatedNote.content = nextContent;
-            if (changed) {
-              nextDirty.content = true;
-            }
+            updatedNote.content = updates.content;
+            hasChanges = true;
           }
 
-          // Apply properties update (merge) and mark dirty keys that changed
+          // Apply properties update (merge)
           if (updates && typeof updates.properties === 'object' && updates.properties !== null) {
             updatedNote.properties = { ...(existingNote.properties || {}), ...updates.properties };
-            const lastSyncedProps = existingNote.lastSyncedProperties || {};
-            const dirtyProps = { ...(nextDirty.properties || {}) };
-            for (const key of Object.keys(updates.properties)) {
-              const nextVal = updatedNote.properties[key];
-              const lastSyncedVal = lastSyncedProps[key];
-              if (nextVal !== lastSyncedVal) {
-                dirtyProps[key] = true;
-              }
-            }
-            if (Object.keys(dirtyProps).length > 0) {
-              nextDirty.properties = dirtyProps;
-            }
+            hasChanges = true;
           }
 
-          // Determine modifyFlag: explicit mapping if provided, else set to 1 when something changed
-          const hasExplicitModifyFlag = Object.prototype.hasOwnProperty.call(updates || {}, 'modifyFlag');
-          if (hasExplicitModifyFlag) {
-            // Normalize boolean/number to 0/1
-            updatedNote.modifyFlag = updates.modifyFlag ? 1 : 0;
-          } else {
-            const changedSomething = (updates && (Object.prototype.hasOwnProperty.call(updates, 'content') || Object.prototype.hasOwnProperty.call(updates, 'properties')));
-            if (changedSomething) {
-              updatedNote.modifyFlag = 1;
-            }
+          // Mark as dirty if there are changes
+          if (hasChanges) {
+            updatedNote.isDirty = true;
           }
 
-          // Allow caller to explicitly update dirty/lastSynced snapshots
-          if (Object.prototype.hasOwnProperty.call(updates || {}, 'dirty')) {
-            updatedNote.dirty = updates.dirty || {};
-          } else {
-            if (Object.keys(nextDirty).length > 0) {
-              updatedNote.dirty = nextDirty;
-            }
-          }
-          if (Object.prototype.hasOwnProperty.call(updates || {}, 'lastSyncedContent')) {
-            updatedNote.lastSyncedContent = updates.lastSyncedContent;
-          }
-          if (Object.prototype.hasOwnProperty.call(updates || {}, 'lastSyncedProperties')) {
-            updatedNote.lastSyncedProperties = updates.lastSyncedProperties;
+          // Allow explicit isDirty override
+          if (Object.prototype.hasOwnProperty.call(updates || {}, 'isDirty')) {
+            updatedNote.isDirty = updates.isDirty;
           }
           
           const putRequest = store.put(updatedNote);
@@ -264,19 +295,20 @@ export const updateNote = async (noteId, updates) => {
   }
 };
 
-// Get notes with modifyFlag = 1
+// Get notes with isDirty = true
 export const getModifiedNotes = async () => {
   try {
     const db = await initDB();
     const transaction = db.transaction([NOTES_STORE], 'readonly');
     const store = transaction.objectStore(NOTES_STORE);
-    const index = store.index('modifyFlag');
     
     return new Promise((resolve, reject) => {
-      const request = index.getAll(IDBKeyRange.only(1)); 
+      const request = store.getAll();
       
       request.onsuccess = () => {
-        resolve({ success: true, notes: request.result });
+        const allNotes = request.result || [];
+        const dirtyNotes = allNotes.filter(note => note.isDirty === true);
+        resolve({ success: true, notes: dirtyNotes });
       };
       
       request.onerror = () => {
@@ -310,8 +342,7 @@ export const updateNoteWithRealId = async (sendNoteId, realNoteId) => {
             const updatedNote = {
               ...note,
               noteId: realNoteId,
-              sendNoteId: realNoteId,
-              realNoteId: realNoteId,
+              isDirty: false
             };
             
             const putRequest = store.put(updatedNote);
@@ -433,8 +464,8 @@ export const searchNotes = async (query) => {
   }
 };
 
-// Mark a note as synced: normalize modifyFlag and update lastSynced snapshots
-export const markNoteSynced = async (noteId, backendModifyFlag) => {
+// Mark a note as synced
+export const markNoteSynced = async (noteId) => {
   try {
     const db = await initDB();
     const transaction = db.transaction([NOTES_STORE], 'readwrite');
@@ -451,10 +482,7 @@ export const markNoteSynced = async (noteId, backendModifyFlag) => {
         }
         const updated = {
           ...note,
-          modifyFlag: backendModifyFlag ? 1 : 0,
-          lastSyncedContent: note.content,
-          lastSyncedProperties: note.properties,
-          dirty: {},
+          isDirty: false
         };
         const putRequest = store.put(updated);
         putRequest.onsuccess = () => resolve({ success: true, note: updated });

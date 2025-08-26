@@ -99,8 +99,9 @@ export const setPasskey = async (token, password ) => {
  * @param {string} password - Password for decryption
  * @returns {Promise<Object>} Notes data
  */
-export const getNotesPage = async (token, page = 1, size = 5, password = "7510") => {
+export const getNotesPage = async (token, page , size , password ) => {
   try {
+    
     const url = `${NOTES_BASE}/?page=${page}&size=${size}&password=${encodeURIComponent(password)}`;
     const response = await fetch(url, {
       method: 'GET',
