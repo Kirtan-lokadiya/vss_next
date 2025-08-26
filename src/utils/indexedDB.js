@@ -57,6 +57,16 @@ export const hashPassword = async (password) => {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
+// Constant-time string comparison to prevent timing attacks
+const constantTimeCompare = async (a, b) => {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+};
+
 // Check if password hash exists in IndexedDB
 export const checkPasswordHashExists = async () => {
   try {
@@ -118,12 +128,9 @@ export const verifyPassword = async (password, token = null, securityBaseUrl = n
         const result = request.result;
 
         if (result && result.value) {
-          // ✅ Local hash check
-          if (result.value === hashedPassword) {
-            resolve({ success: true, valid: true, source: "local" });
-          } else {
-            resolve({ success: true, valid: false, source: "local" });
-          }
+          // ✅ Local hash check with constant-time comparison
+          const isValid = await constantTimeCompare(result.value, hashedPassword);
+          resolve({ success: true, valid: isValid, source: "local" });
           return;
         }
 
