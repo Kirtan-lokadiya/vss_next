@@ -271,20 +271,7 @@ useEffect(() => {
             width: 200,
             empty: false
           },
-          sendNoteId: apiNote.noteId || apiNote.id,
-          realNoteId: apiNote.noteId || apiNote.id,
-          modifyFlag: 0,
-          lastSyncedContent: apiNote.content || '',
-          lastSyncedProperties: apiNote.properties || {
-            x: 100,
-            y: 100,
-            z: 1,
-            color: '#ffffff',
-            height: 100,
-            width: 200,
-            empty: false
-          },
-          dirty: {}
+          isDirty: false
         };
 
         await storeNote(note);
@@ -312,7 +299,6 @@ useEffect(() => {
       return { success: false, message: 'Whiteboard is locked' };
     }
     try {
-      const negativeId = await generateNegativeId();
       const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
       const NOTE_W = 256, NOTE_H = 192, GAP = 24;
       const usableWidth = Math.max(320, viewportWidth - GAP * 2);
@@ -324,7 +310,10 @@ useEffect(() => {
         x: GAP + col * (NOTE_W + GAP),
         y: GAP + row * (NOTE_H + GAP)
       };
-      const newNote = {
+      
+      // Create note directly via API to get real ID
+      const negativeId = await generateNegativeId();
+      const tempNote = {
         noteId: negativeId,
         content,
         properties: {
@@ -336,13 +325,12 @@ useEffect(() => {
           width: 240,
           empty: false
         },
-        sendNoteId: negativeId,
-        realNoteId: null,
-        modifyFlag: 1
+        isDirty: true
       };
-      await storeNote(newNote);
-      setNotes(prev => [...prev, newNote]);
-      return { success: true, note: newNote };
+      
+      await storeNote(tempNote);
+      setNotes(prev => [...prev, tempNote]);
+      return { success: true, note: tempNote };
     } catch (error) {
       console.error('Error creating note:', error);
       return { success: false, message: error.message };
@@ -359,7 +347,7 @@ useEffect(() => {
         return { success: false, message: 'Failed to update note in IndexedDB' };
       }
       setNotes(prev => prev.map(note =>
-        note.noteId === noteId ? { ...note, content, modifyFlag: 1 } : note
+        note.noteId === noteId ? { ...note, content, isDirty: true } : note
       ));
       return { success: true };
     } catch (error) {
@@ -377,7 +365,7 @@ useEffect(() => {
         return { success: false, message: 'Failed to update note properties in IndexedDB' };
       }
       setNotes(prev => prev.map(note =>
-        note.noteId === noteId ? { ...note, properties, modifyFlag: 1 } : note
+        note.noteId === noteId ? { ...note, properties, isDirty: true } : note
       ));
       return { success: true };
     } catch (error) {
@@ -405,7 +393,7 @@ useEffect(() => {
       if (noteId < 0) {
         await forceSync();
         const { notes: updatedNotes } = await getAllNotes();
-        const updatedNote = updatedNotes.find(n => n.sendNoteId === noteId);
+        const updatedNote = updatedNotes.find(n => n.noteId === noteId || (noteId < 0 && n.noteId > 0));
         if (updatedNote && updatedNote.realNoteId > 0) {
           realNoteId = updatedNote.realNoteId;
         }

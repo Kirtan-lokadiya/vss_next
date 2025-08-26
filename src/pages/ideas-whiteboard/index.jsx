@@ -95,12 +95,13 @@ const IdeasWhiteboard = () => {
     if (!isUnlocked) return;
 
     try {
-      if (updates.content !== undefined) {
-        const result = await updateNoteContent(noteId, updates.content);
+      if (updates.content !== undefined || updates.title !== undefined) {
+        const result = await updateNoteContent(noteId, updates.content || updates.title);
         if (!result.success) {
           showToast(result.message || 'Failed to update note', 'error');
         }
-      } else if (updates.color !== undefined) {
+      }
+      if (updates.color !== undefined) {
         const note = notes.find(n => n.noteId === noteId);
         if (note) {
           const updatedProperties = {
@@ -117,7 +118,7 @@ const IdeasWhiteboard = () => {
       showToast(error.message || 'Error updating note', 'error');
       console.error('Error updating note:', error);
     }
-  }, [isUnlocked, updateNoteContent, showToast]);
+  }, [isUnlocked, updateNoteContent, updateNotePosition, notes, showToast]);
 
   // Handle note position update
   const handleMoveNote = useCallback(async (noteId, newPosition) => {
