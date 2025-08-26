@@ -116,7 +116,7 @@ const VSSAuthForm = ({ mode = 'login' }) => {
                     value={formData.fullName}
                     onChange={handleInputChange}
                     required
-                    className="w-full h-12 text-base"
+                    className="w-full h-12 text-base border-2 border-gray-800"
                   />
                 </div>
               )}
@@ -129,7 +129,7 @@ const VSSAuthForm = ({ mode = 'login' }) => {
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className="w-full h-12 text-base"
+                  className="w-full h-12 text-base border-2 border-gray-800"
                 />
               </div>
 
@@ -141,7 +141,7 @@ const VSSAuthForm = ({ mode = 'login' }) => {
                   value={formData.password}
                   onChange={handleInputChange}
                   required
-                  className="w-full h-12 text-base"
+                  className="w-full h-12 text-base border-2 border-gray-800"
                 />
               </div>
 
@@ -154,7 +154,7 @@ const VSSAuthForm = ({ mode = 'login' }) => {
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
                     required
-                    className="w-full h-12 text-base"
+                    className="w-full h-12 text-base border-2 border-gray-800"
                   />
                 </div>
               )}
