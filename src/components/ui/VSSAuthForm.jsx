@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import Button from './Button';
 import Input from './Input';
+import Icon from '../AppIcon';
 
 const VSSAuthForm = ({ mode = 'login' }) => {
   const [formData, setFormData] = useState({
@@ -13,6 +14,8 @@ const VSSAuthForm = ({ mode = 'login' }) => {
     confirmPassword: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { login, register } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
@@ -52,6 +55,8 @@ const VSSAuthForm = ({ mode = 'login' }) => {
             password: '',
             confirmPassword: ''
           });
+          setShowPassword(false);
+          setShowConfirmPassword(false);
         } else {
           showToast(result.message || 'Registration failed', 'error');
         }
@@ -74,6 +79,8 @@ const VSSAuthForm = ({ mode = 'login' }) => {
 
   const goToOppositePage = () => {
     setFormData({ fullName: '', email: '', password: '', confirmPassword: '' });
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     if (mode === 'login') {
       router.push('/register');
     } else {
@@ -86,11 +93,14 @@ const VSSAuthForm = ({ mode = 'login' }) => {
       {/* Left Section - Branding */}
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center px-12">
         <div className="text-center">
-          <h1 className="text-6xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-4">
+          <h1 className="text-9xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-4">
             VSS
           </h1>
           <p className="text-gray-700 text-lg max-w-md">
-            VSS helps you connect and share with the people in your life.
+            with VSS provide Open-funding to your DREAM And connect with people with similar thought
+          </p>
+          <p className="text-gray-700 text-lg max-w-md">
+            with create a profile for a showcase creativity
           </p>
         </div>
       </div>
@@ -116,46 +126,62 @@ const VSSAuthForm = ({ mode = 'login' }) => {
                     value={formData.fullName}
                     onChange={handleInputChange}
                     required
-                    className="w-full h-12 text-base"
+                    className="w-full h-12 text-base border border-gray-300 rounded-lg px-3"
                   />
                 </div>
               )}
 
               <div>
                 <Input
-                  name="email"
-                  type="email"
-                  placeholder="Email address"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full h-12 text-base"
+                    name="email"
+                    type="email"
+                    placeholder="Email address"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full h-12 text-base border border-gray-300 rounded-lg px-3"
                 />
               </div>
 
-              <div>
-                <Input
+              <div className="relative">
+                <input
                   name="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="Password"
                   value={formData.password}
                   onChange={handleInputChange}
                   required
-                  className="w-full h-12 text-base"
+                  className="w-full h-12 text-base border border-gray-300 rounded-lg px-3 pr-10"
                 />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute inset-y-0 right-2 flex items-center px-2 text-gray-500 hover:text-gray-700"
+                >
+                  <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={18} />
+                </button>
               </div>
 
               {mode === 'register' && (
-                <div>
-                  <Input
+                <div className="relative">
+                  <input
                     name="confirmPassword"
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     placeholder="Confirm Password"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
                     required
-                    className="w-full h-12 text-base"
+                    className="w-full h-12 text-base border border-gray-300 rounded-lg px-3 pr-10"
                   />
+                  <button
+                    type="button"
+                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                    onClick={() => setShowConfirmPassword(v => !v)}
+                    className="absolute inset-y-0 right-2 flex items-center px-2 text-gray-500 hover:text-gray-700"
+                  >
+                    <Icon name={showConfirmPassword ? 'EyeOff' : 'Eye'} size={18} />
+                  </button>
                 </div>
               )}
 

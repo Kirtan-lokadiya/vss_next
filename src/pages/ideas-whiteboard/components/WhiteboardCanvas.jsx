@@ -74,6 +74,62 @@ const WhiteboardCanvas = ({
     };
   }, [isPanning]);
 
+  // Note card nominal size (matches StickyNote): 256x192 (w-64 h-48)
+  const NOTE_WIDTH = 256;
+  const NOTE_HEIGHT = 192;
+
+  const getNoteCenter = (note) => ({
+    x: note.position.x + NOTE_WIDTH / 2,
+    y: note.position.y + NOTE_HEIGHT / 2,
+  });
+
+  // Compute intersection of line from center(source) to center(target) with source rectangle bounds
+  const getEdgeIntersectionPoint = (sourceNote, targetCenter) => {
+    const sx = sourceNote.position.x;
+    const sy = sourceNote.position.y;
+    const ex = sx + NOTE_WIDTH;
+    const ey = sy + NOTE_HEIGHT;
+    const cx = sx + NOTE_WIDTH / 2;
+    const cy = sy + NOTE_HEIGHT / 2;
+
+    const dx = targetCenter.x - cx;
+    const dy = targetCenter.y - cy;
+
+    // Prevent division by zero
+    const EPS = 1e-6;
+    const tCandidates = [];
+
+    // Left edge (x = sx)
+    if (Math.abs(dx) > EPS) {
+      const tLeft = (sx - cx) / dx;
+      const yAtLeft = cy + tLeft * dy;
+      if (tLeft >= 0 && yAtLeft >= sy && yAtLeft <= ey) tCandidates.push({ t: tLeft, x: sx, y: yAtLeft });
+    }
+    // Right edge (x = ex)
+    if (Math.abs(dx) > EPS) {
+      const tRight = (ex - cx) / dx;
+      const yAtRight = cy + tRight * dy;
+      if (tRight >= 0 && yAtRight >= sy && yAtRight <= ey) tCandidates.push({ t: tRight, x: ex, y: yAtRight });
+    }
+    // Top edge (y = sy)
+    if (Math.abs(dy) > EPS) {
+      const tTop = (sy - cy) / dy;
+      const xAtTop = cx + tTop * dx;
+      if (tTop >= 0 && xAtTop >= sx && xAtTop <= ex) tCandidates.push({ t: tTop, x: xAtTop, y: sy });
+    }
+    // Bottom edge (y = ey)
+    if (Math.abs(dy) > EPS) {
+      const tBottom = (ey - cy) / dy;
+      const xAtBottom = cx + tBottom * dx;
+      if (tBottom >= 0 && xAtBottom >= sx && xAtBottom <= ex) tCandidates.push({ t: tBottom, x: xAtBottom, y: ey });
+    }
+
+    if (tCandidates.length === 0) return { x: cx, y: cy };
+    // Choose the smallest positive t (closest intersection in the forward direction)
+    tCandidates.sort((a, b) => a.t - b.t);
+    return { x: tCandidates[0].x, y: tCandidates[0].y };
+  };
+
   return (
     <div
       ref={canvasRef}
@@ -101,10 +157,19 @@ const WhiteboardCanvas = ({
           const fromNote = notes.find(n => n.id === conn.from);
           const toNote = notes.find(n => n.id === conn.to);
           if (!fromNote || !toNote) return null;
-          const from = { x: fromNote.position.x + 128, y: fromNote.position.y + 96 };
-          const to = { x: toNote.position.x + 128, y: toNote.position.y + 96 };
+
+          const isFromIdea = (fromNote.title || '').trim().toLowerCase() === 'idea';
+          const toCenter = getNoteCenter(toNote);
+          const fromStart = isFromIdea ? getEdgeIntersectionPoint(fromNote, toCenter) : getNoteCenter(fromNote);
+
           return (
-            <ConnectionLine key={index} from={from} to={to} color={conn.color} />
+            <ConnectionLine
+              key={index}
+              from={fromStart}
+              to={toCenter}
+              color={conn.color}
+              showFromCircle={!isFromIdea}
+            />
           );
         })}
 
