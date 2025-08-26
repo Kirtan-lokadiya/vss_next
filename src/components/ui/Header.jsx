@@ -68,7 +68,14 @@ const Header = () => {
     { label: 'Saved', path: '/?filter=saved', icon: 'Bookmark' },
   ];
 
-  const isActivePath = (path) => router.pathname === path;
+  const isActiveFilter = (filterName) => {
+    return router.pathname === '/' && router.query.filter === filterName;
+  };
+
+  const isActivePath = (path) => {
+    if (path === '/') return router.pathname === '/' && !router.query.filter;
+    return router.pathname === path;
+  };
 
   const toggleProfileMenu = () => setShowProfileMenu(!showProfileMenu);
   const toggleMobileMenu = () => setShowMobileMenu(!showMobileMenu);
@@ -297,7 +304,7 @@ const Header = () => {
                   href={item.path}
                   onClick={() => setShowMobileMenu(false)}
                   className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-micro ${
-                    isActivePath(item.path)
+                    (item.path.includes('filter=') ? isActiveFilter(item.path.split('=')[1]) : isActivePath(item.path))
                       ? 'bg-primary text-primary-foreground'
                       : 'text-text-secondary hover:text-foreground hover:bg-muted'
                   }`}
