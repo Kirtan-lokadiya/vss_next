@@ -1,18 +1,44 @@
-import React, { useEffect } from 'react';
-import { useToast } from '../src/context/ToastContext';
+import React from 'react';
+import { useRouter } from 'next/router';
+import Icon from '../src/components/AppIcon';
 
-const VerifyEmailPage = () => {
-  const { showToast } = useToast();
-  useEffect(() => {
-    showToast('Please check your email for a verification link.');
-  }, [showToast]);
+const VerifyEmail = () => {
+  const router = useRouter();
+  const { email } = router.query;
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center">
-      <h1 className="text-2xl font-bold mb-4 text-foreground">Check Your Email</h1>
-      <p className="text-lg text-foreground mb-2">Thank you for registering!</p>
-      <p className="text-foreground">We have sent a verification link to your email address. Please check your inbox and click the link to verify your account.</p>
+    <div className="min-h-screen bg-white flex items-center justify-center px-6">
+      <div className="text-center max-w-md">
+        {/* Logo */}
+        <h1 className="text-6xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-8">
+          VSS
+        </h1>
+
+        {/* Title */}
+        <h2 className="text-3xl font-bold text-gray-900 mb-8">
+          Great, now verify your email
+        </h2>
+
+        {/* Email Icon */}
+        <div className="mb-8 flex justify-center">
+       
+        </div>
+
+        {/* Content */}
+        <div className="space-y-4 text-gray-600 mb-8">
+          <p>
+            Check your inbox at <span className="font-medium text-gray-900">{email || 'work.it.temp@gmail.com'}</span> and 
+            click the verification link inside to complete your registration. 
+            This link will expire shortly, so verify soon!
+          </p>
+          
+          <p className="text-sm">
+            <span className="font-medium">Don't see an email?</span> Check your spam folder.
+          </p>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default VerifyEmailPage;
+export default VerifyEmail;

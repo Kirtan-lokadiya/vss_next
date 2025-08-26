@@ -48,15 +48,8 @@ const VSSAuthForm = ({ mode = 'login' }) => {
 
         if (result.success) {
           showToast('Registration successful! Please check your email for verification.', 'success');
-          // Reset form
-          setFormData({
-            fullName: '',
-            email: '',
-            password: '',
-            confirmPassword: ''
-          });
-          setShowPassword(false);
-          setShowConfirmPassword(false);
+          // Redirect to verification page
+          router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
         } else {
           showToast(result.message || 'Registration failed', 'error');
         }
