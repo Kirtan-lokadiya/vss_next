@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ConnectionLine = ({ from, to, color = '#6366f1', strokeWidth = 2 }) => {
+const ConnectionLine = ({ from, to, color = '#6366f1', strokeWidth = 2, showFromCircle = true }) => {
   // Calculate the path for a curved connection line
   const calculatePath = () => {
     const dx = to.x - from.x;
@@ -65,13 +65,15 @@ const ConnectionLine = ({ from, to, color = '#6366f1', strokeWidth = 2 }) => {
       />
       
       {/* Connection points */}
-      <circle
-        cx={from.x}
-        cy={from.y}
-        r="3"
-        fill={color}
-        className="drop-shadow-sm"
-      />
+      {showFromCircle && (
+        <circle
+          cx={from.x}
+          cy={from.y}
+          r="3"
+          fill={color}
+          className="drop-shadow-sm"
+        />
+      )}
       <circle
         cx={to.x}
         cy={to.y}

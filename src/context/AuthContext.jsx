@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { openDB } from 'idb';
 
 
 // Initial context
@@ -66,11 +65,28 @@ export const AuthProvider = ({ children }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        return { success: false, message: data?.message || 'Login failed' };
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        try { data = await res.text(); } catch {}
       }
-      handleAuthResponse(data);
+
+      if (!res.ok) {
+        const message = (typeof data === 'object' && data?.message) ? data.message : (typeof data === 'string' ? data : 'Login failed');
+        return { success: false, message };
+      }
+
+      // Handle plain string token response
+      if (typeof data === 'string' && data.length > 20) {
+        persistToken(data);
+        setAuthModalOpen(false);
+        router.push('/');
+        return { success: true };
+      }
+
+      handleAuthResponse(data || {});
       return { success: true };
     } catch (err) {
       console.error(err);
@@ -88,12 +104,24 @@ export const AuthProvider = ({ children }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: `${firstName} ${lastName}`.trim(), email, password }),
       });
-      const data = await res.json();
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        try { data = await res.text(); } catch {}
+      }
+
       // Treat any response with errors or message as failure, even if status is 200
-      if (data?.errors || (data?.message && data?.message !== true)) {
+      if ((typeof data === 'object' && (data?.errors || (data?.message && data?.message !== true)))) {
         const errorMsg = data?.errors?.message || data?.message || 'Registration failed';
         return { success: false, message: errorMsg };
       }
+      if (!res.ok) {
+        const message = (typeof data === 'object' && data?.message) ? data.message : (typeof data === 'string' ? data : 'Registration failed');
+        return { success: false, message };
+      }
+
       // API returns true and sends email; do not persist token yet
       return { success: true };
     } catch (err) {
@@ -144,11 +172,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const clearIndexedDB = async () => {
-    const db = await openDB("WhiteboardDB", 1);
-    for (const storeName of db.objectStoreNames) {
-      await db.clear(storeName);
-    }
-  
+    if (typeof indexedDB === 'undefined') return; // SSR/unsupported guard
+    await new Promise((resolve, reject) => {
+      const request = indexedDB.deleteDatabase('WhiteboardDB');
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+      request.onblocked = () => resolve();
+    });
   };
 
   const logout = async () => {

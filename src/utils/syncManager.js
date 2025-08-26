@@ -106,6 +106,13 @@ class SyncManager {
       const syncResult = await syncNotes(this.token, notesToSync);
 
       if (!syncResult.success) {
+        if (syncResult.status === 401 || syncResult.status === 403 || syncResult.error === 'AUTH_REQUIRED') {
+          // Stop syncing and surface clear auth error
+          this.stop();
+          const authError = new Error('Authentication required. Please log in again.');
+          this.callbacks.onSyncError?.(authError);
+          return;
+        }
         throw new Error(syncResult.error || 'Failed to sync notes');
       }
 

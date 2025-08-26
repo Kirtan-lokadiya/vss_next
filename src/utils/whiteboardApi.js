@@ -15,6 +15,28 @@ const getStoredToken = () => {
   }
 };
 
+// Safe response parsing helpers
+const parseJsonSafe = async (response) => {
+  try { return await response.json(); } catch { return null; }
+};
+const parseTextSafe = async (response) => {
+  try { return await response.text(); } catch { return ''; }
+};
+const buildErrorFromResponse = async (response) => {
+  const json = await parseJsonSafe(response);
+  if (json && typeof json === 'object') {
+    const msg = json?.errors?.message || json?.message || response.statusText || 'Request failed';
+    const err = new Error(msg);
+    err.api = json;
+    err.status = response.status;
+    return err;
+  }
+  const text = await parseTextSafe(response);
+  const err = new Error(text || response.statusText || 'Request failed');
+  err.status = response.status;
+  return err;
+};
+
 /**
  * Set passkey with password 7510
  * @param {string} token - Authorization token
@@ -33,10 +55,10 @@ export const setPasskey = async (token, password ) => {
       body: JSON.stringify({ password: password }),
     });
 
-    const data = await response.json();
+    const data = await parseJsonSafe(response);
 
     // Check if passkey is already set
-    if (data.errors && data.errors.message === "Already Set Security Key" && data.customCode === 403) {
+    if (data?.errors && data.errors.message === "Already Set Security Key" && data.customCode === 403) {
       return {
         success: true,
         alreadySet: true,
@@ -46,7 +68,7 @@ export const setPasskey = async (token, password ) => {
     }
 
     // Success response with passkey data
-    if (response.ok && data.id && data.publicKey) {
+    if (response.ok && data?.id && data?.publicKey) {
       return {
         success: true,
         alreadySet: false,
@@ -57,7 +79,7 @@ export const setPasskey = async (token, password ) => {
     // Error response
     return {
       success: false,
-      error: data.errors?.message || 'Failed to set passkey',
+      error: data?.errors?.message || data?.message || 'Failed to set passkey',
       data
     };
   } catch (error) {
@@ -89,10 +111,10 @@ export const getNotesPage = async (token, page , size , password ) => {
       },
     });
 
-    const data = await response.json();
+    const data = await parseJsonSafe(response);
 
     // Check for empty page (end of pagination)
-    if (data.errors && data.errors.message === "Page is empty" && data.customCode === 404) {
+    if (data?.errors && data.errors.message === "Page is empty" && data.customCode === 404) {
       return {
         success: true,
         isEmpty: true,
@@ -102,7 +124,7 @@ export const getNotesPage = async (token, page , size , password ) => {
     }
 
     // Check for wrong password
-    if (data.errors && data.errors.message === "Error Will Decrypt Content" && data.customCode === 1001) {
+    if (data?.errors && data.errors.message === "Error Will Decrypt Content" && data.customCode === 1001) {
       return {
         success: false,
         wrongPassword: true,
@@ -112,7 +134,7 @@ export const getNotesPage = async (token, page , size , password ) => {
     }
 
     // Success with notes
-    if (response.ok && data.notes) {
+    if (response.ok && data?.notes) {
       return {
         success: true,
         isEmpty: false,
@@ -124,7 +146,7 @@ export const getNotesPage = async (token, page , size , password ) => {
     // Other error
     return {
       success: false,
-      error: data.errors?.message || 'Failed to get notes',
+      error: data?.errors?.message || data?.message || 'Failed to get notes',
       data
     };
   } catch (error) {
@@ -186,11 +208,12 @@ export const loadAllNotes = async (token, password ) => {
  */
 export const syncNotes = async (token, notes) => {
   try {
+    const authToken = token || getStoredToken();
     const url = `${NOTES_BASE}/user-notes`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json',
       },
       // API expects payload in the shape { notes: [...] }
@@ -198,17 +221,17 @@ export const syncNotes = async (token, notes) => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to sync notes');
+      if (response.status === 401 || response.status === 403) {
+        return { success: false, error: 'AUTH_REQUIRED', status: response.status };
+      }
+      const err = await buildErrorFromResponse(response);
+      return { success: false, error: err.message, status: err.status };
     }
 
-    const data = await response.json();
-    
-    // Expected response format:
-    // [{ "sendNoteId": -1, "realNoteId": 452, "modifyFlag": 0 }, ...]
+    const data = await parseJsonSafe(response);
     return {
       success: true,
-      syncResults: data
+      syncResults: Array.isArray(data) ? data : []
     };
   } catch (error) {
     console.error('Error syncing notes:', error);
@@ -227,25 +250,28 @@ export const syncNotes = async (token, notes) => {
  */
 export const searchNoteById = async (token, noteId) => {
   try {
+    const authToken = token || getStoredToken();
     const url = `${NOTES_BASE}/search?noteId=${noteId}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to search note');
+      if (response.status === 401 || response.status === 403) {
+        return { success: false, error: 'AUTH_REQUIRED', status: response.status };
+      }
+      const err = await buildErrorFromResponse(response);
+      return { success: false, error: err.message, status: err.status };
     }
 
-    const data = await response.json();
-    
+    const data = await parseJsonSafe(response);
     return {
       success: true,
-      users: data.users || []
+      users: Array.isArray(data?.users) ? data.users : []
     };
   } catch (error) {
     console.error('Error searching note by ID:', error);
@@ -264,21 +290,25 @@ export const searchNoteById = async (token, noteId) => {
  */
 export const createNote = async (token, noteData) => {
   try {
+    const authToken = token || getStoredToken();
     const response = await fetch(`${NOTES_BASE}/`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(noteData),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to create note');
+      if (response.status === 401 || response.status === 403) {
+        return { success: false, error: 'AUTH_REQUIRED', status: response.status };
+      }
+      const err = await buildErrorFromResponse(response);
+      return { success: false, error: err.message, status: err.status };
     }
 
-    const data = await response.json();
+    const data = await parseJsonSafe(response);
     return {
       success: true,
       note: data
@@ -301,21 +331,25 @@ export const createNote = async (token, noteData) => {
  */
 export const updateNoteContent = async (token, noteId, updates) => {
   try {
+    const authToken = token || getStoredToken();
     const response = await fetch(`${NOTES_BASE}/content/${noteId}`, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ noteId, ...updates }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to update note content');
+      if (response.status === 401 || response.status === 403) {
+        return { success: false, error: 'AUTH_REQUIRED', status: response.status };
+      }
+      const err = await buildErrorFromResponse(response);
+      return { success: false, error: err.message, status: err.status };
     }
 
-    const data = await response.json();
+    const data = await parseJsonSafe(response);
     return {
       success: true,
       note: data
@@ -338,21 +372,25 @@ export const updateNoteContent = async (token, noteId, updates) => {
  */
 export const updateNoteProperties = async (token, noteId, properties) => {
   try {
+    const authToken = token || getStoredToken();
     const response = await fetch(`${NOTES_BASE}/properties/${noteId}`, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ noteId, ...properties }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to update note properties');
+      if (response.status === 401 || response.status === 403) {
+        return { success: false, error: 'AUTH_REQUIRED', status: response.status };
+      }
+      const err = await buildErrorFromResponse(response);
+      return { success: false, error: err.message, status: err.status };
     }
 
-    const data = await response.json();
+    const data = await parseJsonSafe(response);
     return {
       success: true,
       note: data
