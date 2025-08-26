@@ -4,7 +4,8 @@ import Icon from '@/src/components/AppIcon';
 import Image from '@/src/components/AppImage';
 import Button from '@/src/components/ui/Button';
 import { useAuth } from "../../../context/AuthContext";
-import { toggleLikePost, toggleSavePost, getAuthToken, fetchPostGraph, donateToFund } from '@/src/utils/api';
+import { toggleLikePost, toggleSavePost, getAuthToken, fetchPostGraph, donateToFund, createComment, fetchComments, fetchChildComments } from '@/src/utils/api';
+import { extractUserId } from '@/src/utils/jwt';
 import { useToast } from '@/src/context/ToastContext';
 import NetworkVisualization from '@/src/pages/connection-network-tree/components/NetworkVisualization';
 
@@ -16,6 +17,8 @@ const FeedPost = ({ post }) => {
   const [likeCount, setLikeCount] = useState(post.likes || 0);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [comments, setComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
   const [donationPool, setDonationPool] = useState(post?.campaign?.raised || post.donationPool || 0);
   const [showDonate, setShowDonate] = useState(false);
   const [donationAmount, setDonationAmount] = useState(5);
@@ -115,14 +118,62 @@ const FeedPost = ({ post }) => {
     }
   };
 
-  const handleComment = () => {
+  const loadComments = async () => {
+    if (loadingComments) return;
+    const token = getAuthToken();
+    if (!token) {
+      openAuthModal();
+      return;
+    }
+    setLoadingComments(true);
+    try {
+      const data = await fetchComments({ postId: post.id, token });
+      setComments(data);
+    } catch (e) {
+      console.error('Failed to load comments:', e);
+      showToast('Failed to load comments', 'error');
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleComment = async () => {
     if (!isAuthenticated) {
       openAuthModal();
       return;
     }
-    if (commentText.trim()) {
-      console.log('Adding comment:', commentText);
+    if (!commentText.trim()) return;
+    
+    const token = getAuthToken();
+    if (!token) {
+      openAuthModal();
+      return;
+    }
+    
+    try {
+      const userId = extractUserId(token);
+      const newComment = await createComment({
+        postId: post.id,
+        parentId: null,
+        userId,
+        content: commentText.trim(),
+        token
+      });
+      setComments(prev => [newComment, ...prev]);
       setCommentText('');
+      // Update post comment count
+      post.comments = (post.comments || 0) + 1;
+      showToast('Comment added successfully!', 'success');
+    } catch (e) {
+      showToast(e.message || 'Failed to add comment', 'error');
+    }
+  };
+
+  const toggleComments = () => {
+    const newShow = !showComments;
+    setShowComments(newShow);
+    if (newShow && comments.length === 0) {
+      loadComments();
     }
   };
 
@@ -277,7 +328,7 @@ const FeedPost = ({ post }) => {
       <div className="px-6 py-3 border-t border-border">
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={handleLike} requireAuth className={`flex-1 rounded-full ${isLiked ? 'text-primary' : 'text-text-secondary'}`} iconName="ThumbsUp" iconPosition="left" iconSize={16}>Like</Button>
-          <Button variant="ghost" onClick={() => setShowComments(!showComments)} requireAuth className="flex-1 text-text-secondary rounded-full" iconName="MessageCircle" iconPosition="left" iconSize={16}>Comment</Button>
+          <Button variant="ghost" onClick={toggleComments} requireAuth className="flex-1 text-text-secondary rounded-full" iconName="MessageCircle" iconPosition="left" iconSize={16}>Comment</Button>
           <Button variant="ghost" className="flex-1 text-text-secondary rounded-full" iconName={isSaved ? 'BookmarkCheck' : 'Bookmark'} requireAuth onClick={handleSave} iconPosition="left" iconSize={16}>{isSaved ? 'Saved' : 'Save'}</Button>
           <OpenGraphButton post={post} />
         </div>
@@ -286,6 +337,7 @@ const FeedPost = ({ post }) => {
       {/* Comments Section */}
       {showComments && (
         <div className="px-6 py-4 border-t border-border bg-muted/30">
+          {/* Add Comment */}
           <div className="flex items-start space-x-3 mb-4">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
               <Icon name="User" size={16} color="white" />
@@ -297,8 +349,176 @@ const FeedPost = ({ post }) => {
               </div>
             </div>
           </div>
+          
+          {/* Comments List */}
+          {loadingComments ? (
+            <div className="text-center py-4 text-text-secondary">Loading comments...</div>
+          ) : (
+            <div className="space-y-3">
+              {comments.map((comment) => (
+                <CommentItem key={comment.commentId} comment={comment} postId={post.id} onReply={(newComment) => setComments(prev => [...prev, newComment])} />
+              ))}
+              {comments.length === 0 && (
+                <div className="text-center py-4 text-text-secondary text-sm">No comments yet. Be the first to comment!</div>
+              )}
+            </div>
+          )}
         </div>
       )}
+    </div>
+  );
+};
+
+const CommentItem = ({ comment, postId, onReply }) => {
+  const { isAuthenticated, openAuthModal } = useAuth();
+  const { showToast } = useToast();
+  const [showReplies, setShowReplies] = useState(false);
+  const [replies, setReplies] = useState([]);
+  const [replyText, setReplyText] = useState('');
+  const [showReplyBox, setShowReplyBox] = useState(false);
+  const [loadingReplies, setLoadingReplies] = useState(false);
+
+  const loadReplies = async () => {
+    if (loadingReplies) return;
+    const token = getAuthToken();
+    if (!token) {
+      openAuthModal();
+      return;
+    }
+    setLoadingReplies(true);
+    try {
+      const data = await fetchChildComments({ parentId: comment.commentId, token });
+      setReplies(data);
+    } catch (e) {
+      console.error('Failed to load replies:', e);
+      showToast('Failed to load replies', 'error');
+    } finally {
+      setLoadingReplies(false);
+    }
+  };
+
+  const handleReply = async () => {
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+    if (!replyText.trim()) return;
+    
+    const token = getAuthToken();
+    if (!token) {
+      openAuthModal();
+      return;
+    }
+    
+    try {
+      const userId = extractUserId(token);
+      const newReply = await createComment({
+        postId,
+        parentId: comment.commentId,
+        userId,
+        content: replyText.trim(),
+        token
+      });
+      setReplies(prev => [newReply, ...prev]);
+      setReplyText('');
+      setShowReplyBox(false);
+      showToast('Reply added successfully!', 'success');
+    } catch (e) {
+      showToast(e.message || 'Failed to add reply', 'error');
+    }
+  };
+
+  const toggleReplies = () => {
+    const newShow = !showReplies;
+    setShowReplies(newShow);
+    if (newShow && replies.length === 0) {
+      loadReplies();
+    }
+  };
+
+  const formatTimeAgo = (timestamp) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInHours = Math.floor((now - time) / (1000 * 60 * 60));
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    return `${Math.floor(diffInHours / 24)}d ago`;
+  };
+
+  return (
+    <div className="border-l-2 border-border pl-4">
+      <div className="flex items-start space-x-3">
+        <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+          {comment.picture && comment.picture !== 'None' ? (
+            <img src={comment.picture} alt={comment.name} className="w-8 h-8 rounded-full object-cover" />
+          ) : (
+            <Icon name="User" size={16} color="white" />
+          )}
+        </div>
+        <div className="flex-1">
+          <div className="bg-muted rounded-lg p-3">
+            <div className="flex items-center space-x-2 mb-1">
+              <span className="font-medium text-sm">{comment.name}</span>
+              <span className="text-xs text-text-secondary">{formatTimeAgo(comment.timestamp)}</span>
+            </div>
+            <p className="text-sm">{comment.content}</p>
+          </div>
+          <div className="flex items-center space-x-4 mt-2 text-xs text-text-secondary">
+            <button onClick={() => setShowReplyBox(!showReplyBox)} className="hover:text-primary">Reply</button>
+            {comment.topLevel && (
+              <button onClick={toggleReplies} className="hover:text-primary">
+                {showReplies ? 'Hide replies' : `Show replies`}
+              </button>
+            )}
+          </div>
+          
+          {/* Reply Box */}
+          {showReplyBox && (
+            <div className="mt-3 flex items-start space-x-2">
+              <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                <Icon name="User" size={12} color="white" />
+              </div>
+              <div className="flex-1">
+                <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Write a reply..." className="w-full p-2 border border-border rounded-lg resize-none text-sm" rows={2} />
+                <div className="flex justify-end space-x-2 mt-2">
+                  <Button variant="ghost" size="sm" onClick={() => setShowReplyBox(false)}>Cancel</Button>
+                  <Button variant="default" size="sm" onClick={handleReply} disabled={!replyText.trim()}>Reply</Button>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Replies */}
+          {showReplies && (
+            <div className="mt-3 space-y-2">
+              {loadingReplies ? (
+                <div className="text-xs text-text-secondary">Loading replies...</div>
+              ) : (
+                replies.map((reply) => (
+                  <div key={reply.commentId} className="flex items-start space-x-2">
+                    <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                      {reply.picture && reply.picture !== 'None' ? (
+                        <img src={reply.picture} alt={reply.name} className="w-6 h-6 rounded-full object-cover" />
+                      ) : (
+                        <Icon name="User" size={12} color="white" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="bg-card border border-border rounded-lg p-2">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="font-medium text-xs">{reply.name}</span>
+                          <span className="text-xs text-text-secondary">{formatTimeAgo(reply.timestamp)}</span>
+                        </div>
+                        <p className="text-xs">{reply.content}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

@@ -72,6 +72,35 @@ export const donateToFund = async ({ postId, amount, token }) => {
   return data;
 };
 
+export const createComment = async ({ postId, parentId, userId, content, token }) => {
+  const res = await fetch(`${ENDPOINTS.postBase}/comments`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ postId, parentId, userId, content }),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
+  return data;
+};
+
+export const fetchComments = async ({ postId, token }) => {
+  const res = await fetch(`${ENDPOINTS.postBase}/comments/${postId}`, {
+    headers: authHeaders(token),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
+  return data?.comments || [];
+};
+
+export const fetchChildComments = async ({ parentId, token }) => {
+  const res = await fetch(`${ENDPOINTS.postBase}/child-comment/${parentId}`, {
+    headers: authHeaders(token),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
+  return data?.comments || [];
+};
+
 export const toggleLikePost = async ({ postId, token }) => {
   const res = await fetch(`${ENDPOINTS.postBase}/like?postId=${encodeURIComponent(postId)}`, {
     method: 'POST',
