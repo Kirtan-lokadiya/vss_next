@@ -465,11 +465,9 @@ const CommentItem = ({ comment, postId, onReply }) => {
           </div>
           <div className="flex items-center space-x-4 mt-2 text-xs text-text-secondary">
             <button onClick={() => setShowReplyBox(!showReplyBox)} className="hover:text-primary">Reply</button>
-            {comment.topLevel && (
-              <button onClick={toggleReplies} className="hover:text-primary">
-                {showReplies ? 'Hide replies' : `Show replies`}
-              </button>
-            )}
+            <button onClick={toggleReplies} className="hover:text-primary">
+              {showReplies ? 'Hide replies' : 'Show replies'}
+            </button>
           </div>
           
           {/* Reply Box */}
@@ -501,6 +499,139 @@ const CommentItem = ({ comment, postId, onReply }) => {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+};
+
+const ChildCommentItem = ({ comment, postId, onReply }) => {
+  const { isAuthenticated, openAuthModal } = useAuth();
+  const { showToast } = useToast();
+  const [replyText, setReplyText] = useState('');
+  const [showReplyBox, setShowReplyBox] = useState(false);
+  const [showReplies, setShowReplies] = useState(false);
+  const [replies, setReplies] = useState([]);
+  const [loadingReplies, setLoadingReplies] = useState(false);
+
+  const loadReplies = async () => {
+    if (loadingReplies) return;
+    const token = getAuthToken();
+    if (!token) {
+      openAuthModal();
+      return;
+    }
+    setLoadingReplies(true);
+    try {
+      const data = await fetchChildComments({ parentId: comment.commentId, token });
+      setReplies(data);
+    } catch (e) {
+      console.error('Failed to load replies:', e);
+      showToast('Failed to load replies', 'error');
+    } finally {
+      setLoadingReplies(false);
+    }
+  };
+
+  const toggleReplies = () => {
+    const newShow = !showReplies;
+    setShowReplies(newShow);
+    if (newShow && replies.length === 0) {
+      loadReplies();
+    }
+  };
+
+  const handleReply = async () => {
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+    if (!replyText.trim()) return;
+    
+    const token = getAuthToken();
+    if (!token) {
+      openAuthModal();
+      return;
+    }
+    
+    try {
+      const userId = extractUserId(token);
+      const newReply = await createComment({
+        postId,
+        parentId: comment.commentId,
+        userId,
+        content: replyText.trim(),
+        token
+      });
+      setReplies(prev => [newReply, ...prev]);
+      setReplyText('');
+      setShowReplyBox(false);
+      showToast('Reply added successfully!', 'success');
+    } catch (e) {
+      showToast(e.message || 'Failed to add reply', 'error');
+    }
+  };
+
+  const formatTimeAgo = (timestamp) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInHours = Math.floor((now - time) / (1000 * 60 * 60));
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    return `${Math.floor(diffInHours / 24)}d ago`;
+  };
+
+  return (
+    <div className="flex items-start space-x-2">
+      <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+        {comment.picture && comment.picture !== 'None' ? (
+          <img src={comment.picture} alt={comment.name} className="w-6 h-6 rounded-full object-cover" />
+        ) : (
+          <Icon name="User" size={12} color="white" />
+        )}
+      </div>
+      <div className="flex-1">
+        <div className="bg-card border border-border rounded-lg p-2">
+          <div className="flex items-center space-x-2 mb-1">
+            <span className="font-medium text-xs">{comment.name}</span>
+            <span className="text-xs text-text-secondary">{formatTimeAgo(comment.timestamp)}</span>
+          </div>
+          <p className="text-xs">{comment.content}</p>
+        </div>
+        <div className="flex items-center space-x-4 mt-1 text-xs text-text-secondary">
+          <button onClick={() => setShowReplyBox(!showReplyBox)} className="hover:text-primary">Reply</button>
+          <button onClick={toggleReplies} className="hover:text-primary">
+            {showReplies ? 'Hide replies' : 'Show replies'}
+          </button>
+        </div>
+        
+        {/* Reply Box */}
+        {showReplyBox && (
+          <div className="mt-2 flex items-start space-x-2">
+            <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+              <Icon name="User" size={10} color="white" />
+            </div>
+            <div className="flex-1">
+              <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Write a reply..." className="w-full p-2 border border-border rounded-lg resize-none text-xs" rows={2} />
+              <div className="flex justify-end space-x-2 mt-1">
+                <Button variant="ghost" size="sm" onClick={() => setShowReplyBox(false)}>Cancel</Button>
+                <Button variant="default" size="sm" onClick={handleReply} disabled={!replyText.trim()}>Reply</Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Child Replies */}
+        {showReplies && (
+          <div className="mt-2 ml-4 space-y-2">
+            {loadingReplies ? (
+              <div className="text-xs text-text-secondary">Loading replies...</div>
+            ) : (
+              replies.map((reply) => (
+                <ChildCommentItem key={reply.commentId} comment={reply} postId={postId} onReply={(newReply) => setReplies(prev => [...prev, newReply])} />
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
