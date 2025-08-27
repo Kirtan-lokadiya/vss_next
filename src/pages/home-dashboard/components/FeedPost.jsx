@@ -22,6 +22,7 @@ const FeedPost = ({ post }) => {
   const [donationPool, setDonationPool] = useState(post?.campaign?.raised || post.donationPool || 0);
   const [showDonate, setShowDonate] = useState(false);
   const [donationAmount, setDonationAmount] = useState(5);
+  const [showCustom, setShowCustom] = useState(false);
   const [mutating, setMutating] = useState(false);
   const goal = post?.campaign?.goal || 630000; // default goal if campaign exists or not
 
@@ -128,7 +129,9 @@ const FeedPost = ({ post }) => {
     setLoadingComments(true);
     try {
       const data = await fetchComments({ postId: post.id, token });
-      setComments(data);
+      // Sort comments by timestamp descending (latest first)
+      const sortedData = data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      setComments(sortedData);
     } catch (e) {
       console.error('Failed to load comments:', e);
       showToast('Failed to load comments', 'error');
@@ -211,12 +214,12 @@ const FeedPost = ({ post }) => {
               </div>
               <p className="text-sm text-text-secondary truncate">{post.author.title} at {post.author.company}</p>
               <div className="flex items-center space-x-2 mt-1">
-                <span className="text-xs text-text-secondary">{formatTimeAgo(post.timestamp)}</span>
-                <span className="text-xs text-text-secondary">•</span>
                 <div className="flex items-center space-x-1">
                   <Icon name={getPostTypeIcon(post.type)} size={12} className="text-text-secondary" />
-                  <span className="text-xs text-text-secondary capitalize">{post.type}</span>
+                  <span className="text-xs text-text-secondary capitalize">{post.type.replace('_', ' ')}</span>
                 </div>
+                <span className="text-xs text-text-secondary">•</span>
+                <span className="text-xs text-text-secondary">At {formatTimeAgo(post.timestamp)}</span>
               </div>
             </div>
           </div>
@@ -226,6 +229,15 @@ const FeedPost = ({ post }) => {
         </div>
       </div>
 
+      {/* Post Title */}
+      {(post.type === 'open_fund' || post.campaign) && (
+        <div className="px-6 pb-2">
+          <h2 className="text-lg font-semibold text-foreground">
+            {post.fields?.title || post.campaign?.title || 'Funding Campaign'}
+          </h2>
+        </div>
+      )}
+
       {/* Post Content */}
       <div className="px-6 pb-4">
         <div className="prose prose-sm max-w-none">
@@ -234,36 +246,40 @@ const FeedPost = ({ post }) => {
 
         {/* Open Fund Progress Bar */}
         {post.type === 'open_fund' && post.fields && (
-          <div className="mt-3 border border-border rounded-xl p-4 bg-muted/20">
-            <div className="flex items-center mb-2 text-foreground font-medium">
-              <Icon name="CurrencyDollar" size={16} className="mr-2 text-primary" />
-              {post.fields.title || 'Open Fund Campaign'}
-            </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div className="mt-3 rounded-xl p-4 bg-muted/20">
+            <div className="h-3 bg-muted rounded-full overflow-hidden">
               <div
-                className="h-full bg-blue-500 rounded-full transition-all"
+                className="h-full bg-green-500 rounded-full transition-all"
                 style={{ width: `${Math.min(100, Math.round(((post.fields.collectedAmount || 0) / (post.fields.totalAmount || 1)) * 100))}%` }}
               />
             </div>
             <div className="flex items-center justify-between mt-2 text-xs text-text-secondary">
               <span>₹{(post.fields.collectedAmount || 0).toLocaleString('en-IN')} raised</span>
-              <span>{Math.min(100, Math.round(((post.fields.collectedAmount || 0) / (post.fields.totalAmount || 1)) * 100))}% funded</span>
+              <span>
+                {Math.round(((post.fields.collectedAmount || 0) / (post.fields.totalAmount || 1)) * 100) >= 100 
+                  ? 'Completed' 
+                  : `${Math.min(100, Math.round(((post.fields.collectedAmount || 0) / (post.fields.totalAmount || 1)) * 100))}% funded`
+                }
+              </span>
               <span>Goal: ₹{(post.fields.totalAmount || 0).toLocaleString('en-IN')}</span>
             </div>
-            <div className="flex justify-end mt-3">
-              <Button variant="outline" size="sm" onClick={() => setShowDonate(!showDonate)}>Donate</Button>
+            <div className="flex justify-center mt-3">
+              <Button variant="default" size="sm" onClick={() => setShowDonate(!showDonate)} className="bg-green-500 hover:bg-green-600 text-white">Donate</Button>
             </div>
             {showDonate && (
-              <div className="mt-3 p-3 border border-border rounded-lg bg-card">
+              <div className="mt-3 p-3 rounded-lg bg-card">
                 <div className="flex flex-wrap gap-2 mb-2">
                   {[50,100,500,1000].map(v => (
                     <Button key={v} variant="secondary" size="sm" onClick={() => handleDonate(v)}>₹{v}</Button>
                   ))}
+                  <Button variant="secondary" size="sm" onClick={() => setShowCustom(!showCustom)}>Custom</Button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input type="number" value={donationAmount} onChange={(e)=>setDonationAmount(e.target.value)} className="w-28 px-3 py-2 border border-border rounded-lg text-sm"/>
-                  <Button variant="default" size="sm" onClick={()=>handleDonate(donationAmount)}>Add</Button>
-                </div>
+                {showCustom && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input type="number" value={donationAmount} onChange={(e)=>setDonationAmount(e.target.value)} className="w-28 px-3 py-2 border border-border rounded-lg text-sm"/>
+                    <Button variant="default" size="sm" onClick={()=>handleDonate(donationAmount)}>Add</Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -271,36 +287,40 @@ const FeedPost = ({ post }) => {
 
         {/* Campaign Block (dummy/local) */}
         {post.campaign && (
-          <div className="mt-3 border border-border rounded-xl p-4 bg-muted/20">
-            <div className="flex items-center mb-2 text-foreground font-medium">
-              <Icon name="CurrencyDollar" size={16} className="mr-2 text-primary" />
-              {post.campaign.title || 'Funding Campaign'}
-            </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div className="mt-3 rounded-xl p-4 bg-muted/20">
+            <div className="h-3 bg-muted rounded-full overflow-hidden">
               <div
-                className="h-full bg-blue-500 rounded-full transition-all"
+                className="h-full bg-green-500 rounded-full transition-all"
                 style={{ width: `${Math.min(100, Math.round(((donationPool) / (goal || 1)) * 100))}%` }}
               />
             </div>
             <div className="flex items-center justify-between mt-2 text-xs text-text-secondary">
               <span>₹{(donationPool).toLocaleString('en-IN')} raised</span>
-              <span>{Math.min(100, Math.round(((donationPool) / (goal || 1)) * 100))}% funded</span>
+              <span>
+                {Math.round(((donationPool) / (goal || 1)) * 100) >= 100 
+                  ? 'Completed' 
+                  : `${Math.min(100, Math.round(((donationPool) / (goal || 1)) * 100))}% funded`
+                }
+              </span>
               <span>Goal: ₹{(goal).toLocaleString('en-IN')}</span>
             </div>
-            <div className="flex justify-end mt-3">
-              <Button variant="outline" size="sm" onClick={() => setShowDonate(!showDonate)}>Donate</Button>
+            <div className="flex justify-center mt-3">
+              <Button variant="default" size="sm" onClick={() => setShowDonate(!showDonate)} className="bg-green-500 hover:bg-green-600 text-white">Donate</Button>
             </div>
             {showDonate && (
-              <div className="mt-3 p-3 border border-border rounded-lg bg-card">
+              <div className="mt-3 p-3 rounded-lg bg-card">
                 <div className="flex flex-wrap gap-2 mb-2">
                   {[50,100,500,1000].map(v => (
                     <Button key={v} variant="secondary" size="sm" onClick={() => handleDonate(v)}>₹{v}</Button>
                   ))}
+                  <Button variant="secondary" size="sm" onClick={() => setShowCustom(!showCustom)}>Custom</Button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input type="number" value={donationAmount} onChange={(e)=>setDonationAmount(e.target.value)} className="w-28 px-3 py-2 border border-border rounded-lg text-sm"/>
-                  <Button variant="default" size="sm" onClick={()=>handleDonate(donationAmount)}>Add</Button>
-                </div>
+                {showCustom && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input type="number" value={donationAmount} onChange={(e)=>setDonationAmount(e.target.value)} className="w-28 px-3 py-2 border border-border rounded-lg text-sm"/>
+                    <Button variant="default" size="sm" onClick={()=>handleDonate(donationAmount)}>Add</Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -313,7 +333,6 @@ const FeedPost = ({ post }) => {
           <div className="flex items-center space-x-4">
             <span>{likeCount} likes</span>
             <span>{post.comments || 0} comments</span>
-            <span>{post.shares || 0} shares</span>
           </div>
           <div className="flex items-center gap-4">
             <span>{post.views || 0} views</span>
@@ -327,10 +346,44 @@ const FeedPost = ({ post }) => {
       {/* Action Buttons */}
       <div className="px-6 py-3 border-t border-border">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={handleLike} requireAuth className={`flex-1 rounded-full ${isLiked ? 'text-primary' : 'text-text-secondary'}`} iconName="ThumbsUp" iconPosition="left" iconSize={16}>Like</Button>
-          <Button variant="ghost" onClick={toggleComments} requireAuth className="flex-1 text-text-secondary rounded-full" iconName="MessageCircle" iconPosition="left" iconSize={16}>Comment</Button>
-          <Button variant="ghost" className="flex-1 text-text-secondary rounded-full" iconName={isSaved ? 'BookmarkCheck' : 'Bookmark'} requireAuth onClick={handleSave} iconPosition="left" iconSize={16}>{isSaved ? 'Saved' : 'Save'}</Button>
-          <OpenGraphButton post={post} />
+          <Button 
+            variant="ghost" 
+            onClick={handleLike} 
+            requireAuth 
+            className={`flex-1 rounded-full hover:bg-gray-100 transition-all duration-200 ${
+              isLiked ? 'text-blue-500 scale-105' : 'text-text-secondary'
+            }`} 
+            iconName="ThumbsUp" 
+            iconPosition="left" 
+            iconSize={16}
+          >
+            Like
+          </Button>
+          <Button 
+            variant="ghost" 
+            onClick={toggleComments} 
+            requireAuth 
+            className={`flex-1 rounded-full hover:bg-gray-100 transition-all duration-200 ${
+              showComments ? 'bg-gray-200 text-gray-700' : 'text-text-secondary'
+            }`} 
+            iconName="MessageCircle" 
+            iconPosition="left" 
+            iconSize={16}
+          >
+            Comment
+          </Button>
+          <Button 
+            variant="ghost" 
+            className="flex-1 text-text-secondary rounded-full hover:bg-gray-100 transition-all duration-200" 
+            iconName={isSaved ? 'BookmarkCheck' : 'Bookmark'} 
+            requireAuth 
+            onClick={handleSave} 
+            iconPosition="left" 
+            iconSize={16}
+          >
+            {isSaved ? 'Saved' : 'Save'}
+          </Button>
+          <OpenGraphButton post={post} showComments={showComments} />
         </div>
       </div>
 
@@ -662,7 +715,7 @@ const MoreMenu = ({ onShare, onSave, isSaved }) => {
   );
 };
 
-const OpenGraphButton = ({ post }) => {
+const OpenGraphButton = ({ post, showComments }) => {
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
@@ -727,7 +780,16 @@ const OpenGraphButton = ({ post }) => {
 
   return (
     <>
-      <Button variant="ghost" className="flex-1 text-text-secondary" iconName="ChartBar" onClick={openAndLoad} iconPosition="left" iconSize={16}>Graph</Button>
+      <Button 
+        variant="ghost" 
+        className="flex-1 text-text-secondary hover:bg-gray-100 transition-all duration-200 rounded-full" 
+        iconName="ChartBar" 
+        onClick={openAndLoad} 
+        iconPosition="left" 
+        iconSize={16}
+      >
+        Graph
+      </Button>
       {open && (
         <div ref={panelRef} className="fixed top-16 right-0 h-[calc(100vh-4rem)] w-full md:w-[40%] bg-card border-l border-border shadow-2xl z-[900]">
           <div className="p-4 border-b border-border flex items-center justify-between">
