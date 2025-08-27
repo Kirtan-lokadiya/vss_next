@@ -495,24 +495,7 @@ const CommentItem = ({ comment, postId, onReply }) => {
                 <div className="text-xs text-text-secondary">Loading replies...</div>
               ) : (
                 replies.map((reply) => (
-                  <div key={reply.commentId} className="flex items-start space-x-2">
-                    <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                      {reply.picture && reply.picture !== 'None' ? (
-                        <img src={reply.picture} alt={reply.name} className="w-6 h-6 rounded-full object-cover" />
-                      ) : (
-                        <Icon name="User" size={12} color="white" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="bg-card border border-border rounded-lg p-2">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="font-medium text-xs">{reply.name}</span>
-                          <span className="text-xs text-text-secondary">{formatTimeAgo(reply.timestamp)}</span>
-                        </div>
-                        <p className="text-xs">{reply.content}</p>
-                      </div>
-                    </div>
-                  </div>
+                  <ChildCommentItem key={reply.commentId} comment={reply} postId={postId} onReply={(newReply) => setReplies(prev => [...prev, newReply])} />
                 ))
               )}
             </div>

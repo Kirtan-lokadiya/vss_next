@@ -76,7 +76,13 @@ export const createComment = async ({ postId, parentId, userId, content, token }
   const res = await fetch(`${ENDPOINTS.postBase}/comments`, {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify({ postId, parentId, userId, content }),
+    body: JSON.stringify({ 
+      postId, 
+      parentId, 
+      userId, 
+      content,
+      topLevel: !parentId // false when parentId exists (child comment), true when parentId is null (parent comment)
+    }),
   });
   const data = await getJsonSafe(res);
   ensureOk(res, data);
