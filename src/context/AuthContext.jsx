@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { forceSync } from '../utils/syncManager';
 
 
 // Initial context
@@ -182,6 +183,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    try {
+      await forceSync(); // Save notes before logout
+    } catch (err) {
+      console.error("Failed to sync notes before logout:", err);
+    }
+
     setToken(null);
     if (mounted) {
       localStorage.removeItem('token');

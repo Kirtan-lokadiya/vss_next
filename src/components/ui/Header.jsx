@@ -189,7 +189,7 @@ const Header = () => {
         <div className="flex items-center space-x-2">
           <div className="relative" ref={notifRef}>
             <button 
-              className="w-12 h-12 rounded-full bg-gray-300 hover:bg-blue-500 hover:border-4 hover:border-blue-300 flex items-center justify-center transition-colors group"
+              className="w-12 h-12 rounded-full bg-gray-400 border-2 border-gray-400 hover:bg-gray-600 hover:border-blue-300 flex items-center justify-center transition-colors group"
               onClick={async () => {
                 setShowNotifs((s)=>!s);
                 if (!showNotifs) {
@@ -203,7 +203,7 @@ const Header = () => {
                 }
               }}
             >
-              <Icon name="Bell" size={20} className="group-hover:text-white" />
+              <Icon name="Bell" size={20} className="text-gray-600 group-hover:text-white" />
             </button>
             {unreadIds.size > 0 && (
               <span className="absolute -top-1 -right-1 bg-destructive text-white text-[10px] leading-none px-1.5 py-0.5 rounded-full">

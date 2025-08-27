@@ -202,8 +202,8 @@ const FeedPost = ({ post }) => {
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3">
             <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-              {post.author.avatar ? (
-                <Image src={post.author.avatar} alt={post.author.name} className="w-12 h-12 rounded-full object-cover" />
+              {post.author.avatar || `https://i.pravatar.cc/48?u=${post.author.name || Math.random()}` ? (
+                <Image src={post.author.avatar || `https://i.pravatar.cc/48?u=${post.author.name || Math.random()}`} alt={post.author.name} className="w-12 h-12 rounded-full object-cover" />
               ) : (
                 <Icon name="User" size={24} color="white" />
               )}
@@ -393,7 +393,7 @@ const FeedPost = ({ post }) => {
           {/* Add Comment */}
           <div className="flex items-start space-x-3 mb-4">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-              <Icon name="User" size={16} color="white" />
+              <img src={`https://i.pravatar.cc/32?u=current-user`} alt="User" className="w-8 h-8 rounded-full object-cover" />
             </div>
             <div className="flex-1">
               <textarea value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Add a comment..." className="w-full p-3 border border-border rounded-2xl resize-none text-sm focus:ring-2 focus:ring-primary focus:border-transparent" rows={2} />
@@ -502,11 +502,7 @@ const CommentItem = ({ comment, postId, onReply }) => {
     <div className="border-l-2 border-border pl-4">
       <div className="flex items-start space-x-3">
         <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-          {comment.picture && comment.picture !== 'None' ? (
-            <img src={comment.picture} alt={comment.name} className="w-8 h-8 rounded-full object-cover" />
-          ) : (
-            <Icon name="User" size={16} color="white" />
-          )}
+          <img src={comment.picture && comment.picture !== 'None' ? comment.picture : `https://i.pravatar.cc/32?u=${comment.name || Math.random()}`} alt={comment.name} className="w-8 h-8 rounded-full object-cover" />
         </div>
         <div className="flex-1">
           <div className="bg-muted rounded-lg p-3">
@@ -636,11 +632,7 @@ const ChildCommentItem = ({ comment, postId, onReply }) => {
   return (
     <div className="flex items-start space-x-2">
       <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-        {comment.picture && comment.picture !== 'None' ? (
-          <img src={comment.picture} alt={comment.name} className="w-6 h-6 rounded-full object-cover" />
-        ) : (
-          <Icon name="User" size={12} color="white" />
-        )}
+        <img src={comment.picture && comment.picture !== 'None' ? comment.picture : `https://i.pravatar.cc/24?u=${comment.name || Math.random()}`} alt={comment.name} className="w-6 h-6 rounded-full object-cover" />
       </div>
       <div className="flex-1">
         <div className="bg-card border border-border rounded-lg p-2">
