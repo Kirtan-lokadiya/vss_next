@@ -160,17 +160,22 @@ const Header = () => {
           </Link>
         </div>
 
-        {/* Search Icon centered */}
-        <div className="flex-1 flex justify-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/search')}
-            className="w-10 h-10 rounded-full hover:bg-muted"
-            title="Search"
-          >
-            <Icon name="Search" size={20} />
-          </Button>
+        {/* Search Bar centered */}
+        <div className="flex-1 flex justify-center max-w-2xl mx-auto">
+          <div className="relative w-full max-w-lg">
+            <input
+              type="text"
+              placeholder="Search"
+              className="w-full h-10 pl-4 pr-12 bg-muted border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              onFocus={() => navigate('/search')}
+            />
+            <button
+              className="absolute right-0 top-0 h-10 w-12 flex items-center justify-center bg-muted hover:bg-muted/80 rounded-r-full border-l border-border"
+              onClick={() => navigate('/search')}
+            >
+              <Icon name="Search" size={16} className="text-text-secondary" />
+            </button>
+          </div>
         </div>
 
         {/* Right: Profile */}

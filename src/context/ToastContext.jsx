@@ -18,7 +18,7 @@ export const ToastProvider = ({ children }) => {
       {children}
       {toast && (
         <div
-          className={`fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl shadow-lg z-[2000] transition-micro
+          className={`fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl shadow-lg z-[10001] transition-micro
             ${toast.variant === 'error' ? 'bg-error text-white' : toast.variant === 'success' ? 'bg-success text-white' : 'bg-foreground text-background'}
           `}
         >
