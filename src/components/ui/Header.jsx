@@ -189,7 +189,7 @@ const Header = () => {
         <div className="flex items-center space-x-2">
           <div className="relative" ref={notifRef}>
             <button 
-              className="w-12 h-12 rounded-full bg-gray-400 border-2 border-gray-400 hover:bg-gray-600 hover:border-blue-300 flex items-center justify-center transition-colors group"
+              className="w-10 h-10 rounded-full bg-gray-400 border-2 border-gray-400 hover:bg-gray-600 hover:border-blue-300 flex items-center justify-center transition-colors group"
               onClick={async () => {
                 setShowNotifs((s)=>!s);
                 if (!showNotifs) {
@@ -262,13 +262,11 @@ const Header = () => {
               onClick={toggleProfileMenu}
               className="w-10 h-10 rounded-full border-2 border-transparent hover:border-gray-600 transition-colors"
             >
-              {userPicture ? (
-                <img src={userPicture} alt={userName} className="w-full h-full rounded-full object-cover" />
-              ) : (
-                <div className="w-full h-full rounded-full bg-gray-500 flex items-center justify-center text-white font-semibold">
-                  {userName ? userName.charAt(0).toUpperCase() : 'U'}
-                </div>
-              )}
+              <div className={`w-full h-full rounded-full flex items-center justify-center text-white font-semibold ${
+                (userName?.charCodeAt(0) || 0) % 2 === 0 ? 'bg-indigo-500' : 'bg-teal-500'
+              }`}>
+                {userName ? userName.charAt(0).toUpperCase() : 'U'}
+              </div>
             </button>
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-modal z-[10000]">

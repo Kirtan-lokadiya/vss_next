@@ -201,12 +201,10 @@ const FeedPost = ({ post }) => {
       <div className="p-6 pb-4">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3">
-            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-              {post.author.avatar || `https://i.pravatar.cc/48?u=${post.author.name || Math.random()}` ? (
-                <Image src={post.author.avatar || `https://i.pravatar.cc/48?u=${post.author.name || Math.random()}`} alt={post.author.name} className="w-12 h-12 rounded-full object-cover" />
-              ) : (
-                <Icon name="User" size={24} color="white" />
-              )}
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+              (post.author.name?.charCodeAt(0) || 0) % 2 === 0 ? 'bg-red-500' : 'bg-blue-500'
+            }`}>
+              <span className="text-white font-semibold text-lg">{post.author.name?.charAt(0)?.toUpperCase() || 'U'}</span>
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2">
@@ -350,13 +348,19 @@ const FeedPost = ({ post }) => {
             variant="ghost" 
             onClick={handleLike} 
             requireAuth 
-            className={`flex-1 rounded-full hover:bg-gray-100 transition-all duration-200 ${
+            className={`flex-1 rounded-full hover:bg-gray-100 hover:text-blue-500 transition-all duration-200 ${
               isLiked ? 'text-blue-500 scale-105' : 'text-text-secondary'
             }`} 
-            iconName="ThumbsUp" 
+            iconName="ThumbsUp"
             iconPosition="left" 
             iconSize={16}
+            style={isLiked ? { '--icon-fill': 'currentColor' } : {}}
           >
+            <style jsx>{`
+              .text-blue-500 svg {
+                fill: currentColor !important;
+              }
+            `}</style>
             Like
           </Button>
           <Button 
@@ -364,7 +368,7 @@ const FeedPost = ({ post }) => {
             onClick={toggleComments} 
             requireAuth 
             className={`flex-1 rounded-full hover:bg-gray-100 transition-all duration-200 ${
-              showComments ? 'bg-gray-200 text-gray-700' : 'text-text-secondary'
+              showComments ? 'bg-gray-200 text-gray-700' : 'text-text-secondary hover:text-black'
             }`} 
             iconName="MessageCircle" 
             iconPosition="left" 
@@ -374,7 +378,7 @@ const FeedPost = ({ post }) => {
           </Button>
           <Button 
             variant="ghost" 
-            className="flex-1 text-text-secondary rounded-full hover:bg-gray-100 transition-all duration-200" 
+            className="flex-1 text-text-secondary hover:text-black rounded-full hover:bg-gray-100 transition-all duration-200" 
             iconName={isSaved ? 'BookmarkCheck' : 'Bookmark'} 
             requireAuth 
             onClick={handleSave} 
@@ -392,8 +396,8 @@ const FeedPost = ({ post }) => {
         <div className="px-6 py-4 border-t border-border bg-muted/30">
           {/* Add Comment */}
           <div className="flex items-start space-x-3 mb-4">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-              <img src={`https://i.pravatar.cc/32?u=current-user`} alt="User" className="w-8 h-8 rounded-full object-cover" />
+            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-semibold text-sm">U</span>
             </div>
             <div className="flex-1">
               <textarea value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Add a comment..." className="w-full p-3 border border-border rounded-2xl resize-none text-sm focus:ring-2 focus:ring-primary focus:border-transparent" rows={2} />
@@ -501,8 +505,10 @@ const CommentItem = ({ comment, postId, onReply }) => {
   return (
     <div className="border-l-2 border-border pl-4">
       <div className="flex items-start space-x-3">
-        <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-          <img src={comment.picture && comment.picture !== 'None' ? comment.picture : `https://i.pravatar.cc/32?u=${comment.name || Math.random()}`} alt={comment.name} className="w-8 h-8 rounded-full object-cover" />
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+          (comment.name?.charCodeAt(0) || 0) % 2 === 0 ? 'bg-green-500' : 'bg-purple-500'
+        }`}>
+          <span className="text-white font-semibold text-sm">{comment.name?.charAt(0)?.toUpperCase() || 'U'}</span>
         </div>
         <div className="flex-1">
           <div className="bg-muted rounded-lg p-3">
@@ -515,7 +521,7 @@ const CommentItem = ({ comment, postId, onReply }) => {
           <div className="flex items-center space-x-4 mt-2 text-xs text-text-secondary">
             <button onClick={() => setShowReplyBox(!showReplyBox)} className="hover:text-primary">Reply</button>
             <button onClick={toggleReplies} className="hover:text-primary">
-              {showReplies ? 'Hide replies' : 'Show replies'}
+              {showReplies ? 'Hide replies' : `Show replies (${comment.commentCount || 0})`}
             </button>
           </div>
           
@@ -631,8 +637,10 @@ const ChildCommentItem = ({ comment, postId, onReply }) => {
 
   return (
     <div className="flex items-start space-x-2">
-      <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-        <img src={comment.picture && comment.picture !== 'None' ? comment.picture : `https://i.pravatar.cc/24?u=${comment.name || Math.random()}`} alt={comment.name} className="w-6 h-6 rounded-full object-cover" />
+      <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+        (comment.name?.charCodeAt(0) || 0) % 2 === 0 ? 'bg-yellow-500' : 'bg-pink-500'
+      }`}>
+        <span className="text-white font-semibold text-xs">{comment.name?.charAt(0)?.toUpperCase() || 'U'}</span>
       </div>
       <div className="flex-1">
         <div className="bg-card border border-border rounded-lg p-2">
@@ -774,7 +782,7 @@ const OpenGraphButton = ({ post, showComments }) => {
     <>
       <Button 
         variant="ghost" 
-        className="flex-1 text-text-secondary hover:bg-gray-100 transition-all duration-200 rounded-full" 
+        className="flex-1 text-text-secondary hover:text-black hover:bg-gray-100 transition-all duration-200 rounded-full" 
         iconName="ChartBar" 
         onClick={openAndLoad} 
         iconPosition="left" 
