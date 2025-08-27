@@ -20,22 +20,27 @@ const Header = () => {
   const profileRef = React.useRef(null);
   const { isAuthenticated, logout, openAuthModal } = useAuth();
   const [userName, setUserName] = React.useState('');
+  const [userPicture, setUserPicture] = React.useState('');
   const [loadingUser, setLoadingUser] = React.useState(false);
   const [showNotifs, setShowNotifs] = React.useState(false);
   const [notifications, setNotifications] = React.useState([]);
   const [unreadIds, setUnreadIds] = React.useState(new Set());
   const [connectionCount, setConnectionCount] = React.useState(0);
   const { showToast } = useToast();
+  const notifRef = React.useRef(null);
 
   React.useEffect(() => {
     const handleClickOutside = (e) => {
       if (showProfileMenu && profileRef.current && !profileRef.current.contains(e.target)) {
         setShowProfileMenu(false);
       }
+      if (showNotifs && notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotifs(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showProfileMenu]);
+  }, [showProfileMenu, showNotifs]);
 
   // Poll notifications every 5 minutes
   React.useEffect(() => {
@@ -114,6 +119,7 @@ const Header = () => {
         const parsed = JSON.parse(cached);
         if (parsed && parsed.userId === uid && parsed.name) {
           setUserName(parsed.name);
+          setUserPicture(parsed.picture && parsed.picture !== 'None' ? parsed.picture : '');
           // fetch count in background
           updateConnectionCount();
           return; // cache hit; skip fetch
@@ -127,8 +133,9 @@ const Header = () => {
         const data = await fetchUserBasic({ userId: uid, token });
         if (!cancelled) {
           setUserName(data?.name || '');
+          setUserPicture(data?.picture && data.picture !== 'None' ? data.picture : '');
           try {
-            sessionStorage.setItem(USER_BASIC_CACHE_KEY, JSON.stringify({ userId: uid, name: data?.name || '' }));
+            sessionStorage.setItem(USER_BASIC_CACHE_KEY, JSON.stringify({ userId: uid, name: data?.name || '', picture: data?.picture || '' }));
           } catch {}
           // update count after setting name
           await updateConnectionCount();
@@ -150,7 +157,7 @@ const Header = () => {
           <div className="relative">
             <Button variant="ghost" size="icon" onClick={toggleMobileMenu}>
               <Icon name={showMobileMenu ? 'X' : 'Menu'} size={24} />
-            </Button>
+              </Button>
           </div>
           <Link href="/" className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -166,11 +173,11 @@ const Header = () => {
             <input
               type="text"
               placeholder="Search"
-              className="w-full h-10 pl-4 pr-12 bg-muted border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full h-10 pl-4 pr-12 bg-muted border border-gray-600 hover:border-gray-400 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-colors"
               onFocus={() => navigate('/search')}
             />
             <button
-              className="absolute right-0 top-0 h-10 w-12 flex items-center justify-center bg-muted hover:bg-muted/80 rounded-r-full border-l border-border"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 rounded-full transition-colors"
               onClick={() => navigate('/search')}
             >
               <Icon name="Search" size={16} className="text-text-secondary" />
@@ -180,21 +187,24 @@ const Header = () => {
 
         {/* Right: Profile */}
         <div className="flex items-center space-x-2">
-          <div className="relative">
-            <Button variant="ghost" size="icon" onClick={async () => {
-              setShowNotifs((s)=>!s);
-              if (!showNotifs) {
-                try {
-                  const token = getAuthToken();
-                  const list = await fetchNotifications({ token });
-                  setNotifications(Array.isArray(list) ? list : []);
-                  // Mark as read when opening
-                  setUnreadIds(new Set());
-                } catch {}
-              }
-            }}>
-              <Icon name="Bell" size={20} />
-            </Button>
+          <div className="relative" ref={notifRef}>
+            <button 
+              className="w-12 h-12 rounded-full bg-gray-300 hover:bg-blue-500 hover:border-4 hover:border-blue-300 flex items-center justify-center transition-colors group"
+              onClick={async () => {
+                setShowNotifs((s)=>!s);
+                if (!showNotifs) {
+                  try {
+                    const token = getAuthToken();
+                    const list = await fetchNotifications({ token });
+                    setNotifications(Array.isArray(list) ? list : []);
+                    // Mark as read when opening
+                    setUnreadIds(new Set());
+                  } catch {}
+                }
+              }}
+            >
+              <Icon name="Bell" size={20} className="group-hover:text-white" />
+            </button>
             {unreadIds.size > 0 && (
               <span className="absolute -top-1 -right-1 bg-destructive text-white text-[10px] leading-none px-1.5 py-0.5 rounded-full">
                 {unreadIds.size}
@@ -248,14 +258,18 @@ const Header = () => {
             </>
           )}
           <div className="relative" ref={profileRef}>
-            <Button
-              variant="ghost"
-              size="icon"
+            <button
               onClick={toggleProfileMenu}
-              className="w-10 h-10 rounded-full bg-muted hover:bg-primary"
+              className="w-10 h-10 rounded-full border-2 border-transparent hover:border-gray-600 transition-colors"
             >
-              <Icon name="User" size={20} className="text-foreground group-hover:text-white" />
-            </Button>
+              {userPicture ? (
+                <img src={userPicture} alt={userName} className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <div className="w-full h-full rounded-full bg-gray-500 flex items-center justify-center text-white font-semibold">
+                  {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
+            </button>
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-modal z-[10000]">
                 <div className="p-4 border-b border-border">
