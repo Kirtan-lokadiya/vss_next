@@ -210,14 +210,9 @@ const FeedPost = ({ post }) => {
               <div className="flex items-center space-x-2">
                 <h3 className="font-semibold text-foreground truncate">{post.author.name}</h3>
               </div>
-              <p className="text-sm text-text-secondary truncate">{post.author.title} at {post.author.company}</p>
+              {/* <p className="text-sm text-text-secondary truncate">{post.author.title} at {post.author.company}</p> */}
               <div className="flex items-center space-x-2 mt-1">
-                <div className="flex items-center space-x-1">
-                  <Icon name={getPostTypeIcon(post.type)} size={12} className="text-text-secondary" />
-                  <span className="text-xs text-text-secondary capitalize">{post.type.replace('_', ' ')}</span>
-                </div>
-                <span className="text-xs text-text-secondary">•</span>
-                <span className="text-xs text-text-secondary">At {formatTimeAgo(post.timestamp)}</span>
+                <span className="text-xs text-text-secondary">At {formatTimeAgo(post.timestamp)} • {post.type.replace('_', ' ')}</span>
               </div>
             </div>
           </div>
