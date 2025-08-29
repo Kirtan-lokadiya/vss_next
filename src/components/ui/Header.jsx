@@ -330,6 +330,13 @@ const Header = () => {
                   <span className="font-medium">{item.label}</span>
                 </Link>
               ))}
+              <button
+                onClick={() => { setShowMobileMenu(false); navigate('/search'); }}
+                className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-micro text-text-secondary hover:text-foreground hover:bg-muted w-full"
+              >
+                <Icon name="Search" size={20} />
+                <span className="font-medium">Private search</span>
+              </button>
             </nav>
           </aside>
         </div>

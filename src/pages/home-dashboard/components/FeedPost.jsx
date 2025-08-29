@@ -808,6 +808,7 @@ const OpenGraphButton = ({ post, showComments }) => {
                     className="h-[480px]"
                     showControls={false}
                     showLegend={false}
+                    isPostGraph={true}
                   />
                 </div>
               )

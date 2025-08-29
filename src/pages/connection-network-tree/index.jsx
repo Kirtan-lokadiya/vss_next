@@ -2,10 +2,16 @@ import React, { useState, useEffect } from 'react';
 import Header from '@/src/components/ui/Header';
 import NetworkVisualization from './components/NetworkVisualization';
 import ConnectionDetails from './components/ConnectionDetails';
+import { fetchConnectionNetwork, getAuthToken } from '@/src/utils/api';
+import { extractUserId } from '@/src/utils/jwt';
 
 const ConnectionNetworkTree = () => {
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [viewMode, setViewMode] = useState('tree');
+  const [connections, setConnections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     industries: [],
     locations: [],
@@ -14,7 +20,56 @@ const ConnectionNetworkTree = () => {
   });
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Mock connections data
+  // Load connections from API
+  useEffect(() => {
+    const loadConnections = async () => {
+      const token = getAuthToken();
+      if (!token) return;
+      
+      let userId;
+      try {
+        userId = extractUserId(token);
+        setCurrentUserId(userId);
+      } catch (e) {
+        console.error('Failed to extract user ID:', e);
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        const data = await fetchConnectionNetwork({ userId, token });
+        
+        // Transform API data to component format
+        const transformedConnections = (data?.users || []).map(apiUser => ({
+          id: apiUser.id,
+          name: apiUser.name,
+          title: '', // API doesn't provide title
+          company: '', // API doesn't provide company
+          location: '', // API doesn't provide location
+          industry: 'Technology', // Default
+          connections: 0, // API doesn't provide this
+          connectedDate: '', // API doesn't provide this
+          interactions: 0, // API doesn't provide this
+          avatar: apiUser.picture !== 'NONE' ? apiUser.picture : null,
+          bio: '', // API doesn't provide bio
+          skills: [], // API doesn't provide skills
+          mutualConnections: [], // API doesn't provide mutual connections
+          activityHistory: [] // API doesn't provide activity history
+        }));
+        
+        setConnections(transformedConnections);
+      } catch (err) {
+        setError(err.message);
+        console.error('Failed to load connections:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadConnections();
+  }, []);
+
+  // Mock connections data (fallback)
   const mockConnections = [
     {
       id: 1,
@@ -153,20 +208,20 @@ const ConnectionNetworkTree = () => {
     }
   ];
 
-  // Mock network statistics
+  // Network statistics based on actual data
   const networkStats = {
-    totalConnections: 1247,
-    mutualConnections: 89,
-    networkReach: 15600,
-    activeThisWeek: 34,
-    connectionGrowth: 12,
-    mutualGrowth: 5,
-    reachGrowth: 8,
-    activityChange: -2,
+    totalConnections: connections.length,
+    mutualConnections: 0, // API doesn't provide this
+    networkReach: connections.length * 10, // Estimated
+    activeThisWeek: Math.floor(connections.length * 0.3), // Estimated
+    connectionGrowth: 0, // API doesn't provide this
+    mutualGrowth: 0,
+    reachGrowth: 0,
+    activityChange: 0,
     averageConnections: 156,
     topIndustry: 'Technology',
-    networkScore: 85,
-    networkHealth: 88
+    networkScore: Math.min(85, connections.length * 2),
+    networkHealth: Math.min(88, connections.length * 2)
   };
 
   const handleNodeSelect = (node) => {
@@ -175,7 +230,7 @@ const ConnectionNetworkTree = () => {
       return;
     }
     
-    const connection = mockConnections.find(conn => conn.id === node.id) || node;
+    const connection = connections.find(conn => conn.id === node.id) || node;
     setSelectedNode(connection);
   };
 
@@ -204,7 +259,7 @@ const ConnectionNetworkTree = () => {
   };
 
   // Filter connections based on current filters and search
-  const filteredConnections = mockConnections.filter(connection => {
+  const filteredConnections = connections.filter(connection => {
     // Search filter
     if (searchQuery) {
       const searchLower = searchQuery.toLowerCase();
@@ -252,38 +307,34 @@ const ConnectionNetworkTree = () => {
       <Header />
       
       <main className="pt-16">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-6">
-          {/* Removed breadcrumb and page header; static navbar only */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            
-
-            {/* Center - Network Visualization */}
-            <div className="lg:col-span-2">
-              <NetworkVisualization
-                connections={mockConnections}
-                selectedNode={selectedNode}
-                onNodeSelect={handleNodeSelect}
-                viewMode={viewMode}
-                onViewModeChange={setViewMode}
-                filters={filters}
-                className="h-[600px]"
-              />
+        <div className="w-full px-4 lg:px-6 py-6">
+          {/* Network Visualization - Full Width */}
+          {loading ? (
+            <div className="h-[600px] w-full flex items-center justify-center bg-white border border-border rounded-lg">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                <p className="text-text-secondary">Loading your network...</p>
+              </div>
             </div>
+          ) : error ? (
+            <div className="h-[600px] w-full flex items-center justify-center bg-white border border-border rounded-lg">
+              <div className="text-center">
+                <p className="text-destructive mb-2">Failed to load network</p>
+                <p className="text-text-secondary text-sm">{error}</p>
+              </div>
+            </div>
+          ) : (
+            <NetworkVisualization
+              connections={filteredConnections}
+              selectedNode={selectedNode}
+              onNodeSelect={handleNodeSelect}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              filters={filters}
+              className="h-[600px] w-full"
+            />
+          )}
 
-            {/* Right Sidebar removed per request; node popup shown in graph */}
-          </div>
-
-          {/* Mobile View Adjustments */}
-          <div className="lg:hidden mt-6">
-            {selectedNode && (
-              <ConnectionDetails
-                selectedConnection={selectedNode}
-                onClose={() => setSelectedNode(null)}
-                onConnect={handleConnect}
-                onMessage={handleMessage}
-              />
-            )}
-          </div>
         </div>
       </main>
     </div>

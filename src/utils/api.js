@@ -294,6 +294,16 @@ export const deleteConnection = async ({ targetUserId, token }) => {
   return true;
 };
 
+// Fetch user's connection network
+export const fetchConnectionNetwork = async ({ userId, token }) => {
+  const res = await fetch(`${ENDPOINTS.connectBase}/${encodeURIComponent(userId)}`, {
+    headers: authHeaders(token),
+  });
+  const data = await getJsonSafe(res);
+  ensureOk(res, data);
+  return data; // expected: { users: [{ id, name, picture }] }
+}; 
+
 export const getConnectionCount = async ({ userId, token }) => {
   const res = await fetch(`${ENDPOINTS.connectBase}/count/${encodeURIComponent(userId)}`, {
     headers: authHeaders(token),

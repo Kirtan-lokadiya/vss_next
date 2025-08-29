@@ -134,7 +134,7 @@ const VSSAuthForm = ({ mode = 'login' }) => {
               </div>
 
               <div className="relative">
-                <input
+                <Input
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Password"
@@ -155,7 +155,7 @@ const VSSAuthForm = ({ mode = 'login' }) => {
 
               {mode === 'register' && (
                 <div className="relative">
-                  <input
+                  <Input
                     name="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
                     placeholder="Confirm Password"

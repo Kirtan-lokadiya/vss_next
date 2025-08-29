@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Icon from '@/src/components/AppIcon';
 import Button from '@/src/components/ui/Button';
-import { getAuthToken, getConnectionStatus, sendConnectionRequest, cancelConnection } from '@/src/utils/api';
+import { getAuthToken, getConnectionStatus, sendConnectionRequest, cancelConnection, fetchPostGraph } from '@/src/utils/api';
+import { extractUserId } from '@/src/utils/jwt';
 
 const NetworkVisualization = ({
   connections,
@@ -12,7 +13,22 @@ const NetworkVisualization = ({
   className = '',
   showControls = true,
   showLegend = true,
+  postId = null, // When showing graph for a specific post
+  isPostGraph = false, // Whether this is a post graph or user connection graph
 }) => {
+  const [currentUserId, setCurrentUserId] = useState(null);
+  
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const userId = extractUserId(token);
+        setCurrentUserId(userId);
+      } catch (e) {
+        console.error('Failed to extract user ID:', e);
+      }
+    }
+  }, []);
   const containerRef = useRef(null);
   const svgRef = useRef(null);
   const [zoom, setZoom] = useState(1);
@@ -23,6 +39,39 @@ const NetworkVisualization = ({
   const [popup, setPopup] = useState(null); // {x,y,connection}
   const [connectionStatusByUser, setConnectionStatusByUser] = useState({});
   const [connecting, setConnecting] = useState(false);
+  const [postGraphData, setPostGraphData] = useState(null);
+  const [loadingPostGraph, setLoadingPostGraph] = useState(false);
+
+  // Load post graph data if this is a post graph
+  useEffect(() => {
+    const loadPostGraph = async () => {
+      if (!isPostGraph || !postId) return;
+      
+      try {
+        setLoadingPostGraph(true);
+        const token = getAuthToken();
+        const data = await fetchPostGraph({ postId, token });
+        setPostGraphData(data);
+      } catch (err) {
+        console.error('Failed to load post graph:', err);
+      } finally {
+        setLoadingPostGraph(false);
+      }
+    };
+
+    loadPostGraph();
+  }, [isPostGraph, postId]);
+
+  // Use post graph data if available, otherwise use connections
+  const displayConnections = isPostGraph && postGraphData ? 
+    (postGraphData.users || []).map(apiUser => ({
+      id: apiUser.id,
+      name: apiUser.name,
+      avatar: apiUser.picture !== 'NONE' ? apiUser.picture : null,
+      title: '',
+      company: '',
+      interactions: 0
+    })) : connections;
 
   const viewModes = [
     { value: 'tree', label: 'Tree View', icon: 'GitBranch' },
@@ -35,7 +84,7 @@ const NetworkVisualization = ({
     const centerY = 300;
     const positions = new Map();
     positions.set('user', { x: centerX, y: centerY });
-    const list = connections || [];
+    const list = displayConnections || [];
     list.forEach((connection, index) => {
       const angle = (index / Math.max(1, list.length)) * 2 * Math.PI;
       const radius = viewMode === 'circular' ? 200 : 150;
@@ -69,33 +118,60 @@ const NetworkVisualization = ({
 
   const handleMouseUp = () => { setIsDragging(false); };
 
-  // Convert an SVG-space point (node position) to container-local CSS left/top
+  // Convert an SVG-space point (node position) to container coordinates
   const mapSvgPointToContainer = (svgPoint) => {
     const container = containerRef.current;
-    const svg = svgRef.current;
-    if (!container || !svg) return { left: 0, top: 0 };
-    const containerRect = container.getBoundingClientRect();
-    const svgRect = svg.getBoundingClientRect();
-    const left = (svgRect.left - containerRect.left) + pan.x + svgPoint.x * zoom;
-    const top = (svgRect.top - containerRect.top) + pan.y + svgPoint.y * zoom;
+    if (!container) return { left: 0, top: 0 };
+    // Calculate position relative to container, accounting for pan and zoom
+    const left = (svgPoint.x * zoom) + pan.x;
+    const top = (svgPoint.y * zoom) + pan.y;
     return { left, top };
   };
 
   const setPopupPositionFromSvg = (svgPoint, connection) => {
     const { left, top } = mapSvgPointToContainer(svgPoint);
-    setPopup({ x: left + 16, y: top - 20, connection });
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    const popupWidth = 200; // Approximate popup width
+    const popupHeight = 120; // Approximate popup height
+    
+    // Adjust position to keep popup within container bounds
+    let x = left + 16;
+    let y = top - 20;
+    
+    // Keep popup within container bounds
+    if (x + popupWidth > containerRect.width) {
+      x = left - popupWidth - 16;
+    }
+    if (y < 0) {
+      y = top + 40;
+    }
+    if (y + popupHeight > containerRect.height) {
+      y = containerRect.height - popupHeight - 10;
+    }
+    
+    setPopup({ x: Math.max(10, x), y: Math.max(10, y), connection });
   };
 
   const handleNodeClick = (node, position) => {
     onNodeSelect(node);
     if (node && position) {
+      // Set popup with proper screen coordinates
       setPopupPositionFromSvg(position, node);
-      // fetch connection status lazily
-      const token = getAuthToken();
-      if (token && node?.id) {
-        getConnectionStatus({ targetUserId: node.id, token }).then((status) => {
-          setConnectionStatusByUser(prev => ({ ...prev, [node.id]: status || 'NOT_SEND' }));
-        }).catch(() => {});
+      
+      // Only fetch connection status for post graphs, not connection network graphs
+      if (isPostGraph && node?.id && node.id !== currentUserId && node.id !== 'user') {
+        const token = getAuthToken();
+        if (token) {
+          getConnectionStatus({ targetUserId: node.id, token }).then((status) => {
+            setConnectionStatusByUser(prev => ({ ...prev, [node.id]: status || 'NOT_SEND' }));
+          }).catch((err) => {
+            console.error('Failed to get connection status:', err);
+            setConnectionStatusByUser(prev => ({ ...prev, [node.id]: 'NOT_SEND' }));
+          });
+        }
       }
     }
   };
@@ -130,6 +206,17 @@ const NetworkVisualization = ({
     }
   }, [isDragging, dragStart, pan, popup, zoom]);
 
+  // Close popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (popup && containerRef.current && !containerRef.current.contains(e.target)) {
+        setPopup(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [popup]);
+
   return (
     <div ref={containerRef} className={`relative bg-white border border-border rounded-lg overflow-hidden ${className}`}>
       {showControls && (
@@ -140,22 +227,10 @@ const NetworkVisualization = ({
         </div>
       )}
 
-      <svg ref={svgRef} width="100%" height="600" className="cursor-grab active:cursor-grabbing" style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
+      <svg ref={svgRef} width="100%" height="600" viewBox="0 0 800 600" className="cursor-grab active:cursor-grabbing" style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
-          {/* Center user node */}
-          {(() => {
-            const up = nodePositions.get('user');
-            if (!up) return null;
-            return (
-              <g key="user-node">
-                <circle cx={up.x} cy={up.y} r={24} fill="#0A66C2" stroke="#FFFFFF" strokeWidth={3} />
-                <text x={up.x} y={up.y + 40} textAnchor="middle" className="text-xs fill-foreground">Idea</text>
-              </g>
-            );
-          })()}
-
           {/* Lines from center to each node */}
-          {connections.map((connection) => {
+          {displayConnections.map((connection) => {
             const userPos = nodePositions.get('user');
             const connectionPos = nodePositions.get(connection.id);
             if (!userPos || !connectionPos) return null;
@@ -174,19 +249,45 @@ const NetworkVisualization = ({
             );
           })}
 
-          {connections.map((connection) => {
+          {/* Center user node */}
+          {(() => {
+            const up = nodePositions.get('user');
+            if (!up) return null;
+            return (
+              <g key="user-node">
+                <circle cx={up.x} cy={up.y} r={24} fill="#0A66C2" stroke="#FFFFFF" strokeWidth={3} />
+                {isPostGraph ? (
+                  <g>
+                    {/* Lightbulb body */}
+                    <circle cx={up.x} cy={up.y-1} r="8" fill="#FFD700" stroke="#FFA500" strokeWidth="2" />
+                    {/* Lightbulb base */}
+                    <rect x={up.x-4} y={up.y+7} width="8" height="4" rx="1" fill="#C0C0C0" stroke="#808080" strokeWidth="1" />
+                    {/* Filament lines */}
+                    <line x1={up.x-4} y1={up.y-4} x2={up.x+4} y2={up.y+2} stroke="#FF8C00" strokeWidth="1.5" />
+                    <line x1={up.x-4} y1={up.y+2} x2={up.x+4} y2={up.y-4} stroke="#FF8C00" strokeWidth="1.5" />
+                  </g>
+                ) : (
+                  <text x={up.x} y={up.y + 4} textAnchor="middle" className="text-xs fill-white font-medium">Idea</text>
+                )}
+              </g>
+            );
+          })()}
+
+          {displayConnections.map((connection) => {
             const position = nodePositions.get(connection.id);
             if (!position) return null;
             return (
-              <g key={connection.id} onClick={() => handleNodeClick(connection, position)} onMouseEnter={() => handleConnectionHover(connection.id)} onMouseLeave={() => handleConnectionHover(null)} className="cursor-pointer">
+              <g key={connection.id} onClick={() => handleNodeClick({...connection, x: position.x, y: position.y}, position)} onMouseEnter={() => handleConnectionHover(connection.id)} onMouseLeave={() => handleConnectionHover(null)} className="cursor-pointer">
                 <defs>
                   <clipPath id={`clip-${connection.id}`}>
                     <circle cx={position.x} cy={position.y} r={20} />
                   </clipPath>
                 </defs>
                 <circle cx={position.x} cy={position.y} r={20} fill={getNodeColor(connection)} stroke="#FFFFFF" strokeWidth={3} />
-                {connection.avatar && (
+                {connection.avatar ? (
                   <image href={connection.avatar} x={position.x - 20} y={position.y - 20} width="40" height="40" preserveAspectRatio="xMidYMid slice" clipPath={`url(#clip-${connection.id})`} />
+                ) : (
+                  <text x={position.x} y={position.y + 4} textAnchor="middle" className="text-sm fill-white font-semibold">{connection.name?.charAt(0)?.toUpperCase() || 'U'}</text>
                 )}
                 <circle cx={position.x} cy={position.y} r={20} fill="none" stroke="#FFFFFF" strokeWidth={3} />
                 <text x={position.x} y={position.y + 35} textAnchor="middle" className="text-xs fill-foreground">{connection.name.split(' ')[0]}</text>
@@ -198,43 +299,65 @@ const NetworkVisualization = ({
       </svg>
 
       {popup && (
-        <div className="absolute" style={{ left: popup.x + 'px', top: popup.y + 'px' }}>
-          <div className="bg-card border border-border rounded-md shadow-card p-3 w-56">
-            <div className="flex items-center gap-2 mb-2">
-              {popup.connection.avatar ? <img src={popup.connection.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-primary" />}
-              <div><div className="text-sm font-semibold text-foreground">{popup.connection.name}</div></div>
+        <div className="absolute z-50 bg-white border border-border rounded-lg shadow-lg p-3 min-w-48" style={{ left: popup.x, top: popup.y }} onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex-shrink-0">
+              {popup.connection.avatar ? (
+                <img src={popup.connection.avatar} alt={popup.connection.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-primary flex items-center justify-center">
+                  <span className="text-white font-semibold text-lg">{popup.connection.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center justify-between mt-2">
-              <a href="/profile" className="text-sm text-primary hover:underline">View Profile</a>
-              {(() => {
-                const status = connectionStatusByUser[popup.connection.id] || 'NOT_SEND';
-                if (status === 'PENDING') {
-                  return (
-                    <Button size="sm" variant="outline" disabled={connecting} onClick={async () => {
-                      try {
-                        setConnecting(true);
-                        const token = getAuthToken();
-                        await cancelConnection({ targetUserId: popup.connection.id, token });
-                        setConnectionStatusByUser(prev => ({ ...prev, [popup.connection.id]: 'NOT_SEND' }));
-                      } finally { setConnecting(false); }
-                    }}>Cancel</Button>
-                  );
-                }
-                if (status === 'CONNECT') {
-                  return <span className="text-xs text-success">Connected</span>;
-                }
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground">{popup.connection.name}</h3>
+              <p className="text-sm text-text-secondary">{popup.connection.title || 'User'}</p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <a href={`/user/${popup.connection.id}`} className="text-sm text-primary hover:underline">View Profile</a>
+            {(() => {
+              if (!isPostGraph || popup.connection.id === currentUserId || popup.connection.id === 'user') {
+                return null;
+              }
+              
+              const status = connectionStatusByUser[popup.connection.id] || 'NOT_SEND';
+              if (status === 'PENDING') {
                 return (
-                  <Button size="sm" variant="default" disabled={connecting} onClick={async () => {
+                  <Button size="sm" variant="outline" disabled={connecting} onClick={async () => {
                     try {
                       setConnecting(true);
                       const token = getAuthToken();
-                      await sendConnectionRequest({ targetUserId: popup.connection.id, message: `Hello ${popup.connection.name}`, token });
-                      setConnectionStatusByUser(prev => ({ ...prev, [popup.connection.id]: 'PENDING' }));
+                      await cancelConnection({ targetUserId: popup.connection.id, token });
+                      setConnectionStatusByUser(prev => ({ ...prev, [popup.connection.id]: 'NOT_SEND' }));
+                    } catch (err) {
+                      console.error('Failed to cancel connection:', err);
                     } finally { setConnecting(false); }
-                  }}>Connect</Button>
+                  }}>Cancel</Button>
                 );
-              })()}
-            </div>
+              }
+              if (status === 'CONNECT') {
+                return <span className="text-xs text-success">Connected</span>;
+              }
+              if (status === 'REJECTED') {
+                return <span className="text-xs text-destructive">Rejected</span>;
+              }
+              return (
+                <Button size="sm" variant="default" disabled={connecting} onClick={async () => {
+                  try {
+                    setConnecting(true);
+                    const token = getAuthToken();
+                    const message = `Hello ${popup.connection.name}, I'd like to connect with you!`;
+                    await sendConnectionRequest({ targetUserId: popup.connection.id, message, token });
+                    setConnectionStatusByUser(prev => ({ ...prev, [popup.connection.id]: 'PENDING' }));
+                  } catch (err) {
+                    console.error('Failed to send connection request:', err);
+                  } finally { setConnecting(false); }
+                }}>Connect</Button>
+              );
+            })()
+            }
           </div>
         </div>
       )}
