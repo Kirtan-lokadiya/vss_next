@@ -134,7 +134,7 @@ const GoogleSearch = () => {
             <button className="px-2 py-3 text-sm font-medium text-primary border-b-2 border-primary">People</button>
             {/* placeholders for future tabs */}
             <button className="px-2 py-3 text-sm text-text-secondary" disabled>Posts</button>
-            <button className="px-2 py-3 text-sm text-text-secondary" disabled>Ideas</button>
+            <button className="px-2 py-3 text-sm text-text-secondary" disabled>Open Found</button>
           </div>
 
           {/* People - Real API Graph */}
