@@ -316,7 +316,13 @@ const NetworkVisualization = ({
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <a href={`/user/${popup.connection.id}`} className="text-sm text-primary hover:underline">View Profile</a>
+            <div className="flex space-x-2">
+              <a href={`/user/${popup.connection.id}`} className="text-sm text-primary hover:no-underline">View Profile</a>
+              <button className="text-sm bg-primary text-white hover:bg-primary/90 px-3 py-1 rounded flex items-center space-x-1">
+                <Icon name="MessageCircle" size={14} />
+                <span>Message</span>
+              </button>
+            </div>
             {(() => {
               if (!isPostGraph || popup.connection.id === currentUserId || popup.connection.id === 'user') {
                 return null;

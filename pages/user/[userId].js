@@ -81,7 +81,16 @@ const UserProfile = () => {
                 )}
               </div>
               <h2 className="text-2xl font-bold mb-2">{userBasic?.name || 'User'}</h2>
-              <p className="text-text-secondary mb-2">{userBasic?.email || ''}</p>
+              <p className="text-text-secondary mb-4">{userBasic?.email || ''}</p>
+              <div className="flex space-x-3">
+                <a href={`/user/${userId}`} className="text-sm text-primary hover:no-underline px-4 py-2 border border-primary rounded-lg">
+                  View Profile
+                </a>
+                <button className="text-sm bg-primary text-white hover:bg-primary/90 px-4 py-2 rounded-lg flex items-center space-x-2">
+                  <Icon name="MessageCircle" size={16} />
+                  <span>Message</span>
+                </button>
+              </div>
             </div>
 
             <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">

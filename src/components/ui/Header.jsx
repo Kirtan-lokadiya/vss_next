@@ -68,6 +68,7 @@ const Header = () => {
     { label: 'Home', path: '/', icon: 'Home' },
     { label: 'Ideas', path: '/ideas-whiteboard', icon: 'Lightbulb' },
     { label: 'Network', path: '/connection-network-tree', icon: 'Users' },
+    { label: 'Messages', path: '/messages', icon: 'MessageCircle' },
     { label: 'Questions', path: '/questions', icon: 'HelpCircle' },
     { label: 'Liked', path: '/?filter=liked', icon: 'ThumbsUp' },
     { label: 'Saved', path: '/?filter=saved', icon: 'Bookmark' },
